@@ -50,6 +50,31 @@ An intelligent agent that automates the workflow of a professional math tutor. T
 * **Action:** Handle "Tutor is sick/away" scenarios.
 * **Logic:** Move Google Calendar events and draft a professional SMS/Email to students with an alternative booking link.
 
+### FR6: Matura Exam Grading (Automated PDF Assessment)
+* **Input:** A completed matura exam answer sheet submitted by the teacher as a PDF file
+  (e.g., exported from a tablet or scanned).
+* **Process:**
+  1. Teacher uploads the filled-in PDF via the Streamlit dashboard.
+  2. `pdf2image` converts each PDF page to a high-resolution image.
+  3. Claude 3.5 Sonnet (Vision) performs OCR on the handwritten/printed responses,
+     extracting candidate answers for each sub-task.
+  4. The agent fetches the official **marking scheme** from the knowledge base (e.g., S3
+     bucket key `marking_schemes/{exam_id}.json`) using the new `fetch_marking_scheme` tool.
+  5. Each extracted answer is compared against the marking scheme: full marks, partial
+     marks, or zero are awarded per sub-task, following the official CKE (Centralna
+     Komisja Egzaminacyjna) criteria.
+  6. A structured **grading report** is generated, showing: earned vs. maximum points per
+     task, total score, percentage, and a per-task justification for awarded/deducted marks.
+* **Output:**
+  * A PDF grading report downloadable from the dashboard.
+  * Optional: log the result to the student's `progress.json` on Google Drive
+    (links matura performance with the ongoing progress tracking in FR2).
+* **Knowledge Base Integration:**
+  * Marking schemes are stored in an S3 bucket (e.g., `s3://tutor-agent-assets/marking_schemes/`).
+  * Exam schemas are keyed by exam type and year (e.g., `matura_math_2024_podstawa.json`).
+  * Each schema contains: task IDs, accepted answer variants, point allocations, and
+    tolerance rules for numeric answers.
+
 ---
 
 ## 4. Agent Architecture
@@ -59,6 +84,11 @@ An intelligent agent that automates the workflow of a professional math tutor. T
 2. `analyze_math_content(images)`: Sends images to Bedrock with a prompt to extract math topics and errors.
 3. `get_daily_schedule()`: Reads Google Calendar for the current day.
 4. `update_student_progress_file()`: Logs identified gaps into a `progress.json` stored on Drive.
+5. `fetch_marking_scheme(exam_id)`: Retrieves the official matura marking scheme JSON
+   from S3 for the given exam identifier. Used exclusively by the FR6 grading workflow.
+6. `grade_matura_submission(images, marking_scheme)`: Sends exam page images alongside
+   the marking scheme to Bedrock; returns a structured JSON of per-task scores and
+   justifications.
 
 ### System Prompt Guidelines:
 * You are an **Expert Math Assistant**.

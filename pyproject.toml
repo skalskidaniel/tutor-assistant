@@ -1,0 +1,14 @@
+[project]
+name = "tutor-assistant"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "boto3>=1.42.90",
+    "fitz>=0.0.1.dev2",
+    "pillow>=12.2.0",
+    "pydantic>=2.13.2",
+    "pymupdf>=1.27.2.2",
+    "python-dotenv>=1.2.2",
+]
