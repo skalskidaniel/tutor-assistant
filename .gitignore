@@ -48,6 +48,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+credentials.json
+token.json
 
 # Runtime/log files
 *.log

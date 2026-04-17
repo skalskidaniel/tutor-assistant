@@ -1,23 +1,24 @@
-"""Tutor Assistant package."""
+"""Onboarding package for new student flow."""
 
-from .onboarding import (
+from .models import MeetingSchedule, NewStudentRequest, WelcomePackage, slugify
+from .providers import (
+    DriveProvider,
     GoogleDriveProvider,
     GoogleMeetProvider,
     InMemoryDriveProvider,
     InMemoryMeetProvider,
-    MeetingSchedule,
-    NewStudentRequest,
-    StudentWelcomeService,
-    WelcomePackage,
-    slugify,
+    MeetProvider,
 )
+from .service import StudentWelcomeService
 
 __all__ = [
+    "DriveProvider",
     "GoogleDriveProvider",
     "GoogleMeetProvider",
     "InMemoryDriveProvider",
     "InMemoryMeetProvider",
     "MeetingSchedule",
+    "MeetProvider",
     "NewStudentRequest",
     "StudentWelcomeService",
     "WelcomePackage",

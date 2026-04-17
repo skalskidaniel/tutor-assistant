@@ -26,6 +26,7 @@ def test_onboard_student_returns_welcome_package() -> None:
         first_name="Jan",
         last_name="Kowalski",
         email="jan.kowalski@example.com",
+        phone="+48500100200",
     )
 
     result = service.onboard_student(request)
