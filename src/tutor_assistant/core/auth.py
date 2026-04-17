@@ -11,7 +11,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 CALENDAR_SCOPES = ("https://www.googleapis.com/auth/calendar.events",)
 DRIVE_SCOPES = ("https://www.googleapis.com/auth/drive",)
+GMAIL_SEND_SCOPES = ("https://www.googleapis.com/auth/gmail.send",)
 GOOGLE_ONBOARDING_SCOPES = CALENDAR_SCOPES + DRIVE_SCOPES
+GOOGLE_VACATION_SCOPES = CALENDAR_SCOPES + GMAIL_SEND_SCOPES
 
 
 def load_google_credentials(

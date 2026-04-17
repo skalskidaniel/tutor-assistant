@@ -16,6 +16,15 @@ from .onboarding import (
     WelcomePackage,
     slugify,
 )
+from .vacation import (
+    CalendarLessonEvent,
+    GmailProvider,
+    GoogleCalendarLessonProvider,
+    StudentVacationNotice,
+    VacationNotificationService,
+    VacationRequest,
+    VacationResult,
+)
 
 __all__ = [
     "DriveCleanupResult",
@@ -28,6 +37,13 @@ __all__ = [
     "MeetingSchedule",
     "NewStudentRequest",
     "StudentWelcomeService",
+    "StudentVacationNotice",
+    "VacationNotificationService",
+    "VacationRequest",
+    "VacationResult",
     "WelcomePackage",
+    "CalendarLessonEvent",
+    "GoogleCalendarLessonProvider",
+    "GmailProvider",
     "slugify",
 ]

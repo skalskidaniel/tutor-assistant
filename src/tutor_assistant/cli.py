@@ -16,6 +16,12 @@ from tutor_assistant.onboarding import (
     NewStudentRequest,
     StudentWelcomeService,
 )
+from tutor_assistant.vacation import (
+    GmailProvider,
+    GoogleCalendarLessonProvider,
+    VacationNotificationService,
+    VacationRequest,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -91,6 +97,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Folder nadrzedny, zawierajacy foldery uczniow",
     )
 
+    vacation = subparsers.add_parser(
+        "vacation",
+        help="Use Case 3: powiadomienia o nieobecnosci",
+    )
+    vacation.add_argument("--start-date", required=True, help="Data startu YYYY-MM-DD")
+    vacation.add_argument(
+        "--end-date",
+        default=None,
+        help="Data konca YYYY-MM-DD (domyslnie taka sama jak start-date)",
+    )
+    vacation.add_argument(
+        "--calendar-id",
+        default="primary",
+        help="ID kalendarza Google (domyslnie: primary)",
+    )
+    vacation.add_argument(
+        "--send-emails",
+        action="store_true",
+        help="Wyslij automatycznie e-maile do uczniow",
+    )
+
     return parser
 
 
@@ -103,6 +130,10 @@ def main() -> None:
 
     if args.command == "cleanup-drive":
         _run_cleanup_drive(args)
+        return
+
+    if args.command == "vacation":
+        _run_vacation(args)
         return
 
     raise RuntimeError(f"Nieznana komenda CLI: {args.command}")
@@ -156,6 +187,38 @@ def _run_cleanup_drive(args: argparse.Namespace) -> None:
     print(f"Przeskanowani uczniowie: {result.scanned_students}")
     print(f"Usuniete pliki z zadania-domowe: {result.deleted_files}")
     print(f"Zmienione nazwy plikow w notatki: {result.renamed_files}")
+
+
+def _run_vacation(args: argparse.Namespace) -> None:
+    start_date = date.fromisoformat(args.start_date)
+    end_date = date.fromisoformat(args.end_date) if args.end_date else start_date
+    request = VacationRequest(start_date=start_date, end_date=end_date)
+
+    calendar_provider = GoogleCalendarLessonProvider(calendar_id=args.calendar_id)
+    email_provider = GmailProvider() if args.send_emails else None
+    service = VacationNotificationService(
+        calendar_provider=calendar_provider,
+        email_provider=email_provider,
+    )
+    result = service.prepare_notifications(
+        request=request,
+        send_emails=args.send_emails,
+    )
+
+    print("Powiadomienia o nieobecnosci przygotowane.\n")
+    print(f"Przeskanowane wydarzenia: {result.scanned_events}")
+    print(f"Liczba uczniow do powiadomienia: {len(result.notices)}\n")
+
+    for index, notice in enumerate(result.notices, start=1):
+        print(f"[{index}] Uczen: {notice.student_name}")
+        print(f"Telefon: {notice.student_phone or 'brak'}")
+        print(f"Email: {notice.student_email or 'brak'}")
+        print("Wiadomosc:")
+        print(notice.message)
+        if args.send_emails:
+            status = "wyslany" if notice.email_sent else "pominiety (brak e-maila)"
+            print(f"Status e-maila: {status}")
+        print("-" * 40)
 
 
 if __name__ == "__main__":

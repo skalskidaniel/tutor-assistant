@@ -14,6 +14,11 @@ from tutor_assistant import WelcomePackage  # pyright: ignore[reportMissingImpor
 
 @pytest.mark.integration
 def test_google_providers_integration_real_api() -> None:
+    run_enabled = os.getenv("GOOGLE_ENABLE_ONBOARDING_INTEGRATION_TEST") == "1"
+    if not run_enabled:
+        pytest.skip(
+            "Test wysylki Gmail jest opt-in. Ustaw GOOGLE_ENABLE_ONBOARDING_INTEGRATION_TEST=1."
+        )
 
     credentials_path = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
     if not os.path.exists(credentials_path):
