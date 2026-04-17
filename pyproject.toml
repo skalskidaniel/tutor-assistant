@@ -12,3 +12,14 @@ dependencies = [
     "pymupdf>=1.27.2.2",
     "python-dotenv>=1.2.2",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.basedpyright]
+extraPaths = ["src"]
