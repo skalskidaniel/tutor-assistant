@@ -1,5 +1,10 @@
 """Tutor Assistant package."""
 
+from .drive_cleanup import (
+    DriveCleanupResult,
+    DriveCleanupService,
+    GoogleDriveCleanupProvider,
+)
 from .onboarding import (
     GoogleDriveProvider,
     GoogleMeetProvider,
@@ -13,6 +18,9 @@ from .onboarding import (
 )
 
 __all__ = [
+    "DriveCleanupResult",
+    "DriveCleanupService",
+    "GoogleDriveCleanupProvider",
     "GoogleDriveProvider",
     "GoogleMeetProvider",
     "InMemoryDriveProvider",

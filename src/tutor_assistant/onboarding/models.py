@@ -8,6 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from tutor_assistant.core import slugify
+
 
 @dataclass(frozen=True)
 class MeetingSchedule:
@@ -58,29 +60,3 @@ class WelcomePackage:
     meet_link: str
     drive_folder_url: str
     message_for_student: str
-
-
-def slugify(value: str) -> str:
-    normalized = value.lower().strip()
-    normalized = normalized.replace("ą", "a")
-    normalized = normalized.replace("ć", "c")
-    normalized = normalized.replace("ę", "e")
-    normalized = normalized.replace("ł", "l")
-    normalized = normalized.replace("ń", "n")
-    normalized = normalized.replace("ó", "o")
-    normalized = normalized.replace("ś", "s")
-    normalized = normalized.replace("ź", "z")
-    normalized = normalized.replace("ż", "z")
-
-    result: list[str] = []
-    previous_dash = False
-    for char in normalized:
-        if char.isalnum():
-            result.append(char)
-            previous_dash = False
-        elif not previous_dash:
-            result.append("-")
-            previous_dash = True
-
-    slug = "".join(result).strip("-")
-    return slug or "uczen"

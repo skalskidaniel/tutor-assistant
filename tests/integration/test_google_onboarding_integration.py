@@ -14,10 +14,6 @@ from tutor_assistant import WelcomePackage  # pyright: ignore[reportMissingImpor
 
 @pytest.mark.integration
 def test_google_providers_integration_real_api() -> None:
-    if os.getenv("RUN_GOOGLE_INTEGRATION") != "1":
-        pytest.skip(
-            "Ustaw RUN_GOOGLE_INTEGRATION=1, aby uruchomic test realnego Google API."
-        )
 
     credentials_path = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
     if not os.path.exists(credentials_path):
@@ -39,15 +35,17 @@ def test_google_providers_integration_real_api() -> None:
             occurrences=2,
         )
     )
+    drive_provider = GoogleDriveProvider()
     service = StudentWelcomeService(
         meet_provider=meet_provider,
-        drive_provider=GoogleDriveProvider(),
+        drive_provider=drive_provider,
     )
 
     try:
         result = service.onboard_student(request)
     finally:
         meet_provider.delete_last_created_meeting()
+        drive_provider.delete_last_created_workspace()
 
     assert isinstance(result, WelcomePackage)
     assert result.meet_link.startswith("https://meet.google.com/")

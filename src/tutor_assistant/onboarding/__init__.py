@@ -1,6 +1,8 @@
 """Onboarding package for new student flow."""
 
-from .models import MeetingSchedule, NewStudentRequest, WelcomePackage, slugify
+from tutor_assistant.core import slugify
+
+from .models import MeetingSchedule, NewStudentRequest, WelcomePackage
 from .providers import (
     DriveProvider,
     GoogleDriveProvider,

@@ -17,6 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
+tutor-assistant = "tutor_assistant.cli:main"
 tutor-assistant-onboard = "tutor_assistant.cli:main"
 
 [dependency-groups]

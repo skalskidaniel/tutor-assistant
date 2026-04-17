@@ -5,21 +5,17 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from pathlib import Path
 import os
-from typing import Protocol, cast
+from typing import Protocol
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from tutor_assistant.core import GOOGLE_ONBOARDING_SCOPES, load_google_credentials
+
 from .models import MeetingSchedule, NewStudentRequest
 
-CALENDAR_SCOPES = ("https://www.googleapis.com/auth/calendar.events",)
-DRIVE_SCOPES = ("https://www.googleapis.com/auth/drive",)
-GOOGLE_ONBOARDING_SCOPES = CALENDAR_SCOPES + DRIVE_SCOPES
 WEEKDAY_TO_RRULE = {0: "MO", 1: "TU", 2: "WE", 3: "TH", 4: "FR", 5: "SA", 6: "SU"}
 
 
@@ -82,7 +78,7 @@ class GoogleMeetProvider:
         self._last_created_event_id: str | None = None
 
     def create_personal_meeting(self, student: NewStudentRequest) -> str:
-        credentials = _load_google_credentials(
+        credentials = load_google_credentials(
             credentials_path=self._credentials_path,
             token_path=self._token_path,
             scopes=GOOGLE_ONBOARDING_SCOPES,
@@ -142,7 +138,7 @@ class GoogleMeetProvider:
         if self._last_created_event_id is None:
             return
 
-        credentials = _load_google_credentials(
+        credentials = load_google_credentials(
             credentials_path=self._credentials_path,
             token_path=self._token_path,
             scopes=GOOGLE_ONBOARDING_SCOPES,
@@ -211,9 +207,10 @@ class GoogleDriveProvider:
         self._parent_folder_id = parent_folder_id or os.getenv(
             "GOOGLE_DRIVE_PARENT_FOLDER_ID"
         )
+        self._last_created_workspace_id: str | None = None
 
     def create_student_workspace(self, student: NewStudentRequest) -> str:
-        credentials = _load_google_credentials(
+        credentials = load_google_credentials(
             credentials_path=self._credentials_path,
             token_path=self._token_path,
             scopes=GOOGLE_ONBOARDING_SCOPES,
@@ -226,6 +223,7 @@ class GoogleDriveProvider:
                 name=student.folder_slug,
                 parent_id=self._parent_folder_id,
             )
+            self._last_created_workspace_id = root_id
             self._create_folder(
                 drive_service=drive_service,
                 name="zadania-domowe",
@@ -261,6 +259,29 @@ class GoogleDriveProvider:
         raise RuntimeError(
             "Folder zostal utworzony, ale nie udalo sie pobrac linku udostepnienia."
         )
+
+    def delete_last_created_workspace(self) -> None:
+        if self._last_created_workspace_id is None:
+            return
+
+        credentials = load_google_credentials(
+            credentials_path=self._credentials_path,
+            token_path=self._token_path,
+            scopes=GOOGLE_ONBOARDING_SCOPES,
+        )
+        drive_service = build("drive", "v3", credentials=credentials)
+        try:
+            self._delete_folder_tree(
+                drive_service=drive_service,
+                folder_id=self._last_created_workspace_id,
+            )
+        except HttpError as exc:
+            raise RuntimeError(
+                "Nie udalo sie usunac testowego folderu na Google Drive. "
+                f"Szczegoly: {_format_http_error(exc)}"
+            ) from exc
+        finally:
+            self._last_created_workspace_id = None
 
     @staticmethod
     def _create_folder(
@@ -301,57 +322,28 @@ class GoogleDriveProvider:
             sendNotificationEmail=False,
         ).execute()
 
-
-def _load_google_credentials(
-    *,
-    credentials_path: Path,
-    token_path: Path,
-    scopes: tuple[str, ...],
-) -> Credentials:
-    credentials: Credentials | None = None
-
-    if token_path.exists():
-        credentials = cast(
-            Credentials,
-            Credentials.from_authorized_user_file(str(token_path), scopes),
-        )
-
-    if (
-        credentials
-        and credentials.valid
-        and _credentials_cover_scopes(credentials, scopes)
-    ):
-        return credentials
-
-    if (
-        credentials
-        and credentials.expired
-        and credentials.refresh_token
-        and _credentials_cover_scopes(credentials, scopes)
-    ):
-        credentials.refresh(Request())
-    else:
-        if not credentials_path.exists():
-            raise FileNotFoundError(
-                f"Brak pliku credentials: {credentials_path}. "
-                "Pobierz go z Google Cloud Console."
+    @classmethod
+    def _delete_folder_tree(cls, *, drive_service, folder_id: str) -> None:
+        query = f"'{folder_id}' in parents and trashed=false"
+        response = (
+            drive_service.files()
+            .list(
+                q=query,
+                fields="files(id, mimeType)",
             )
-        flow = InstalledAppFlow.from_client_secrets_file(str(credentials_path), scopes)
-        credentials = cast(Credentials, flow.run_local_server(port=0))
-
-    if credentials is None:
-        raise RuntimeError(
-            "Nie udalo sie uzyskac poprawnych danych uwierzytelniajacych Google."
+            .execute()
         )
+        for item in response.get("files", []):
+            child_id = item.get("id")
+            mime_type = item.get("mimeType")
+            if not isinstance(child_id, str):
+                continue
+            if mime_type == "application/vnd.google-apps.folder":
+                cls._delete_folder_tree(drive_service=drive_service, folder_id=child_id)
+                continue
+            drive_service.files().delete(fileId=child_id).execute()
 
-    token_path.write_text(credentials.to_json(), encoding="utf-8")
-    return credentials
-
-
-def _credentials_cover_scopes(
-    credentials: Credentials, scopes: tuple[str, ...]
-) -> bool:
-    return credentials.has_scopes(list(scopes))
+        drive_service.files().delete(fileId=folder_id).execute()
 
 
 def _format_http_error(error: HttpError) -> str:
