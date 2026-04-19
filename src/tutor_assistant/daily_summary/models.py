@@ -30,6 +30,7 @@ class DailyLessonSummary:
     student_name: str
     lesson_date: date
     lesson_start_time: datetime | None
+    lesson_end_time: datetime | None
     source_pdf_name: str | None
     recent_notes_summary: str
 

@@ -30,6 +30,11 @@ pythonpath = ["src"]
 markers = [
     "integration: marks tests that call real external services",
 ]
+filterwarnings = [
+    "ignore:builtin type SwigPyPacked has no __module__ attribute:DeprecationWarning",
+    "ignore:builtin type SwigPyObject has no __module__ attribute:DeprecationWarning",
+    "ignore:builtin type swigvarlink has no __module__ attribute:DeprecationWarning",
+]
 
 [tool.basedpyright]
 extraPaths = ["src"]

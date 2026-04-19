@@ -46,6 +46,7 @@ class DailySummaryService:
                         student_name=event.student_name,
                         lesson_date=event.lesson_date,
                         lesson_start_time=event.start_time,
+                        lesson_end_time=event.end_time,
                         source_pdf_name=None,
                         recent_notes_summary="Brak notatek PDF w folderze notatki.",
                     )
@@ -64,6 +65,7 @@ class DailySummaryService:
                     student_name=event.student_name,
                     lesson_date=event.lesson_date,
                     lesson_start_time=event.start_time,
+                    lesson_end_time=event.end_time,
                     source_pdf_name=latest_pdf.file_name,
                     recent_notes_summary=insights.recent_notes_summary,
                 )

@@ -24,6 +24,8 @@ from tutor_assistant.core import (
 
 from .models import ExtractedRecentPages, LatestNotesPdf, LessonInsights
 
+MAX_BEDROCK_IMAGE_DIMENSION = 8000
+
 
 class StudentNotesProvider(Protocol):
     def get_latest_notes_pdf(self, *, student_name: str) -> LatestNotesPdf | None: ...
@@ -234,10 +236,18 @@ class GoogleDriveStudentNotesProvider:
 
 
 class PyMuPdfRecentPagesProvider:
-    def __init__(self, *, recent_pages_count: int = 3) -> None:
+    def __init__(
+        self,
+        *,
+        recent_pages_count: int = 3,
+        max_total_image_bytes: int = 2_500_000,
+    ) -> None:
         if recent_pages_count < 1:
             raise ValueError("recent_pages_count musi byc wieksze od zera.")
+        if max_total_image_bytes < 100_000:
+            raise ValueError("max_total_image_bytes jest zbyt male.")
         self._recent_pages_count = recent_pages_count
+        self._max_total_image_bytes = max_total_image_bytes
 
     def extract_recent_pages(self, *, pdf_bytes: bytes) -> ExtractedRecentPages:
         if not pdf_bytes:
@@ -250,18 +260,40 @@ class PyMuPdfRecentPagesProvider:
 
         with document:
             page_count = len(document)
-            recent_images: list[bytes] = []
             recent_start = max(0, page_count - self._recent_pages_count)
+            recent_indices = list(range(recent_start, page_count))
 
-            for index in range(recent_start, page_count):
-                page = document.load_page(index)
-                pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
-                recent_images.append(pixmap.tobytes("png"))
+            recent_images: list[bytes] = []
+            for scale in (1.0, 0.85, 0.7, 0.55):
+                candidate = self._render_recent_pages(
+                    document=document,
+                    page_indices=recent_indices,
+                    scale=scale,
+                )
+                recent_images = candidate
+                if sum(len(image) for image in candidate) <= self._max_total_image_bytes:
+                    break
 
         return ExtractedRecentPages(
             recent_page_images_png=tuple(recent_images),
             page_count=page_count,
         )
+
+    @staticmethod
+    def _render_recent_pages(
+        *,
+        document,
+        page_indices: list[int],
+        scale: float,
+    ) -> list[bytes]:
+        images: list[bytes] = []
+        for index in page_indices:
+            page = document.load_page(index)
+            adjusted_scale = _scale_for_dimension_limit(page=page, base_scale=scale)
+            matrix = fitz.Matrix(adjusted_scale, adjusted_scale)
+            pixmap = page.get_pixmap(matrix=matrix, colorspace=fitz.csGRAY, alpha=False)
+            images.append(pixmap.tobytes("png"))
+        return images
 
 
 class _BedrockLessonInsights(BaseModel):
@@ -289,47 +321,57 @@ class BedrockLessonInsightsProvider:
     def analyze_lesson_notes(
         self, *, extracted_pages: ExtractedRecentPages
     ) -> LessonInsights:
-        if not extracted_pages.recent_page_images_png:
+        images = list(extracted_pages.recent_page_images_png)
+        if not images:
             return LessonInsights(
                 recent_notes_summary="Brak stron do analizy w notatkach PDF.",
             )
 
         client = boto3.client("bedrock-runtime", region_name=self._region_name)
         prompt = self._build_prompt()
-        content_blocks: list[dict[str, object]] = [
-            {
-                "type": "text",
-                "text": prompt,
-            }
-        ]
-        for image_bytes in extracted_pages.recent_page_images_png:
-            content_blocks.append(
+
+        while images:
+            content_blocks: list[dict[str, object]] = [
                 {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": base64.b64encode(image_bytes).decode("utf-8"),
-                    },
+                    "type": "text",
+                    "text": prompt,
                 }
-            )
+            ]
+            for image_bytes in images:
+                content_blocks.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": base64.b64encode(image_bytes).decode("utf-8"),
+                        },
+                    }
+                )
 
-        payload = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 800,
-            "temperature": 0,
-            "messages": [{"role": "user", "content": content_blocks}],
-        }
+            payload = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 800,
+                "temperature": 0,
+                "messages": [{"role": "user", "content": content_blocks}],
+            }
 
-        try:
-            response = client.invoke_model(
-                modelId=self._model_id,
-                body=json.dumps(payload),
-                contentType="application/json",
-                accept="application/json",
-            )
-        except (BotoCoreError, ClientError) as exc:
-            raise RuntimeError(f"Nie udalo sie wywolac AWS Bedrock: {exc}") from exc
+            try:
+                response = client.invoke_model(
+                    modelId=self._model_id,
+                    body=json.dumps(payload),
+                    contentType="application/json",
+                    accept="application/json",
+                )
+                break
+            except (BotoCoreError, ClientError) as exc:
+                details = str(exc)
+                if "Input is too long" in details and len(images) > 1:
+                    images = images[1:]
+                    continue
+                raise RuntimeError(f"Nie udalo sie wywolac AWS Bedrock: {exc}") from exc
+        else:
+            raise RuntimeError("Nie udalo sie przygotowac poprawnego wejscia dla Bedrock.")
 
         raw_body = response.get("body")
         if raw_body is None:
@@ -352,7 +394,8 @@ class BedrockLessonInsightsProvider:
         return (
             "Jestes asystentem nauczyciela matematyki. Otrzymasz obrazy 3 ostatnich "
             "stron notatek ucznia. Odczytaj tresc (takze reczne pismo) i przygotuj "
-            "zwiezle podsumowanie ostatnio przerobionego materialu. "
+            "zwiezle podsumowanie ostatnio przerobionego materialu (max 3 zdania). "
+            "Pisz w prostym jezyku."
             "Odpowiedz tylko po polsku i zwroc "
             "wylacznie poprawny JSON bez markdownu i bez dodatkowego tekstu.\n\n"
             "Wymagany format JSON:\n"
@@ -425,3 +468,9 @@ def _format_http_error(error: HttpError) -> str:
     if isinstance(reason, str) and reason:
         return f"HTTP {status}: {reason}"
     return f"HTTP {status}: {error}"
+
+
+def _scale_for_dimension_limit(*, page, base_scale: float) -> float:
+    max_page_dimension = max(page.rect.width, page.rect.height)
+    allowed_scale = MAX_BEDROCK_IMAGE_DIMENSION / max_page_dimension
+    return max(0.1, min(base_scale, allowed_scale))

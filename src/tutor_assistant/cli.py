@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date
+from datetime import date, datetime
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 from tutor_assistant.daily_summary import (
     BedrockLessonInsightsProvider,
@@ -148,6 +152,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    load_dotenv(Path(".env"), override=True)
     args = build_parser().parse_args()
 
     if args.command == "onboard":
@@ -253,13 +258,16 @@ def _run_vacation(args: argparse.Namespace) -> None:
 
 def _run_daily_summary(args: argparse.Namespace) -> None:
     target_date = date.fromisoformat(args.date) if args.date else date.today()
+    selected_parent_folder_id = args.drive_parent_folder_id or os.getenv(
+        "GOOGLE_DRIVE_PARENT_FOLDER_ID"
+    )
 
     calendar_provider = GoogleCalendarLessonProvider(
         calendar_id=args.calendar_id,
         include_drive_scope=True,
     )
     notes_provider = GoogleDriveStudentNotesProvider(
-        parent_folder_id=args.drive_parent_folder_id
+        parent_folder_id=selected_parent_folder_id
     )
     pdf_recent_pages_provider = PyMuPdfRecentPagesProvider(recent_pages_count=3)
     insights_provider = BedrockLessonInsightsProvider()
@@ -276,19 +284,48 @@ def _run_daily_summary(args: argparse.Namespace) -> None:
     print(f"Liczba zaplanowanych lekcji: {result.scanned_events}")
     print(f"Liczba podsumowan: {len(result.lesson_summaries)}\n")
 
+    if result.lesson_summaries and all(
+        lesson.source_pdf_name is None for lesson in result.lesson_summaries
+    ):
+        print(
+            "Uwaga: nie znaleziono zadnych notatek PDF. "
+            "Sprawdz GOOGLE_DRIVE_PARENT_FOLDER_ID lub --drive-parent-folder-id."
+        )
+        print(f"Aktualny folder nadrzedny: {selected_parent_folder_id or 'brak'}\n")
+
     for index, lesson in enumerate(result.lesson_summaries, start=1):
-        lesson_time = "brak"
-        if lesson.lesson_start_time is not None:
-            if lesson.lesson_start_time.tzinfo is None:
-                lesson_time = lesson.lesson_start_time.strftime("%H:%M")
-            else:
-                lesson_time = lesson.lesson_start_time.astimezone().strftime("%H:%M")
+        lesson_time = _format_lesson_time_range(
+            start=lesson.lesson_start_time,
+            end=lesson.lesson_end_time,
+        )
         print(f"[{index}] Godzina: {lesson_time}")
         print(f"Uczen: {lesson.student_name}")
         print(f"Notatki PDF: {lesson.source_pdf_name or 'brak'}")
         print("Ostatnie notatki (na podstawie 3 ostatnich stron):")
         print(lesson.recent_notes_summary)
         print("-" * 40)
+
+
+def _format_lesson_time_range(
+    *,
+    start: datetime | None,
+    end: datetime | None,
+) -> str:
+    if start is None:
+        return "brak"
+
+    start_label = _format_clock_time(start)
+    if end is None:
+        return start_label
+
+    end_label = _format_clock_time(end)
+    return f"{start_label}-{end_label}"
+
+
+def _format_clock_time(value: datetime) -> str:
+    if value.tzinfo is None:
+        return value.strftime("%H:%M")
+    return value.astimezone().strftime("%H:%M")
 
 
 if __name__ == "__main__":

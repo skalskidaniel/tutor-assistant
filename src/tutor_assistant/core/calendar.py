@@ -26,6 +26,7 @@ class CalendarLessonEvent:
     student_name: str
     lesson_date: date
     start_time: datetime | None = None
+    end_time: datetime | None = None
     student_email: str | None = None
     student_phone: str | None = None
 
@@ -98,7 +99,7 @@ class GoogleCalendarLessonProvider:
                         timeMax=end_dt,
                         singleEvents=True,
                         orderBy="startTime",
-                        fields="nextPageToken, items(summary, description, start, attendees)",
+                        fields="nextPageToken, items(summary, description, start, end, attendees)",
                         pageToken=page_token,
                     )
                     .execute()
@@ -107,6 +108,7 @@ class GoogleCalendarLessonProvider:
                 for item in response.get("items", []):
                     summary = item.get("summary")
                     start_value = _extract_lesson_start(item.get("start"))
+                    end_value = _extract_lesson_datetime(item.get("end"))
                     lesson_date = _extract_lesson_date(item.get("start"), start_value)
                     if (
                         not isinstance(summary, str)
@@ -122,6 +124,7 @@ class GoogleCalendarLessonProvider:
                             student_name=summary.strip(),
                             lesson_date=lesson_date,
                             start_time=start_value,
+                            end_time=end_value,
                             student_email=student_email,
                             student_phone=student_phone,
                         )
@@ -153,10 +156,14 @@ class GoogleCalendarLessonProvider:
 
 
 def _extract_lesson_start(raw_start: object) -> datetime | None:
-    if not isinstance(raw_start, dict):
+    return _extract_lesson_datetime(raw_start)
+
+
+def _extract_lesson_datetime(raw_value: object) -> datetime | None:
+    if not isinstance(raw_value, dict):
         return None
 
-    date_time_value = raw_start.get("dateTime")
+    date_time_value = raw_value.get("dateTime")
     if isinstance(date_time_value, str):
         normalized = date_time_value.replace("Z", "+00:00")
         return datetime.fromisoformat(normalized)
