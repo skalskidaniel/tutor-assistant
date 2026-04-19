@@ -1,17 +1,16 @@
 """Use case 3: vacation notifications."""
 
-from .models import (
+from tutor_assistant.core.calendar import (
     CalendarLessonEvent,
-    StudentVacationNotice,
-    VacationRequest,
-    VacationResult,
-)
-from .providers import (
-    GmailProvider,
     GoogleCalendarLessonProvider,
-    InMemoryEmailProvider,
     InMemoryLessonCalendarProvider,
     LessonCalendarProvider,
+)
+
+from .models import StudentVacationNotice, VacationRequest, VacationResult
+from .providers import (
+    GmailProvider,
+    InMemoryEmailProvider,
     StudentEmailProvider,
 )
 from .service import VacationNotificationService

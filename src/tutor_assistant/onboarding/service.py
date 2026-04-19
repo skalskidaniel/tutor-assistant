@@ -41,7 +41,6 @@ class StudentWelcomeService:
             "Witaj w gronie moich uczniow. Ponizej znajdziesz najwazniejsze linki:\n"
             f"- Google Meet: {meet_link}\n"
             f"- Twoj folder na Google Drive: {drive_folder_url}\n"
-            f"- Numer telefonu: {student.phone}\n\n"
             "W folderze znajdziesz katalogi `zadania-domowe` oraz `notatki`. "
             "Do zobaczenia na pierwszych zajeciach!"
         )

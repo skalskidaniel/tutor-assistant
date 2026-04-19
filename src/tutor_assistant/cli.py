@@ -5,10 +5,17 @@ from __future__ import annotations
 import argparse
 from datetime import date
 
+from tutor_assistant.daily_summary import (
+    BedrockLessonInsightsProvider,
+    DailySummaryService,
+    GoogleDriveStudentNotesProvider,
+    PyMuPdfRecentPagesProvider,
+)
 from tutor_assistant.drive_cleanup import (
     DriveCleanupService,
     GoogleDriveCleanupProvider,
 )
+from tutor_assistant.core import GoogleCalendarLessonProvider
 from tutor_assistant.onboarding import (
     GoogleDriveProvider,
     GoogleMeetProvider,
@@ -18,7 +25,6 @@ from tutor_assistant.onboarding import (
 )
 from tutor_assistant.vacation import (
     GmailProvider,
-    GoogleCalendarLessonProvider,
     VacationNotificationService,
     VacationRequest,
 )
@@ -26,7 +32,7 @@ from tutor_assistant.vacation import (
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Uruchamia workflow onboardingu i cleanupu Google Drive."
+        description="Uruchamia workflow use case'ow asystenta nauczyciela."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -118,6 +124,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Wyslij automatycznie e-maile do uczniow",
     )
 
+    daily_summary = subparsers.add_parser(
+        "daily-summary",
+        help="Use Case 1: dzienne podsumowanie zajec",
+    )
+    daily_summary.add_argument(
+        "--date",
+        default=None,
+        help="Data podsumowania YYYY-MM-DD (domyslnie dzisiaj)",
+    )
+    daily_summary.add_argument(
+        "--calendar-id",
+        default="primary",
+        help="ID kalendarza Google (domyslnie: primary)",
+    )
+    daily_summary.add_argument(
+        "--drive-parent-folder-id",
+        default=None,
+        help="Folder nadrzedny, zawierajacy foldery uczniow",
+    )
+
     return parser
 
 
@@ -134,6 +160,10 @@ def main() -> None:
 
     if args.command == "vacation":
         _run_vacation(args)
+        return
+
+    if args.command == "daily-summary":
+        _run_daily_summary(args)
         return
 
     raise RuntimeError(f"Nieznana komenda CLI: {args.command}")
@@ -218,6 +248,46 @@ def _run_vacation(args: argparse.Namespace) -> None:
         if args.send_emails:
             status = "wyslany" if notice.email_sent else "pominiety (brak e-maila)"
             print(f"Status e-maila: {status}")
+        print("-" * 40)
+
+
+def _run_daily_summary(args: argparse.Namespace) -> None:
+    target_date = date.fromisoformat(args.date) if args.date else date.today()
+
+    calendar_provider = GoogleCalendarLessonProvider(
+        calendar_id=args.calendar_id,
+        include_drive_scope=True,
+    )
+    notes_provider = GoogleDriveStudentNotesProvider(
+        parent_folder_id=args.drive_parent_folder_id
+    )
+    pdf_recent_pages_provider = PyMuPdfRecentPagesProvider(recent_pages_count=3)
+    insights_provider = BedrockLessonInsightsProvider()
+
+    service = DailySummaryService(
+        calendar_provider=calendar_provider,
+        notes_provider=notes_provider,
+        pdf_recent_pages_provider=pdf_recent_pages_provider,
+        insights_provider=insights_provider,
+    )
+    result = service.build_summary_for_day(target_date=target_date)
+
+    print(f"Dzienne podsumowanie zajec dla: {target_date.isoformat()}\n")
+    print(f"Liczba zaplanowanych lekcji: {result.scanned_events}")
+    print(f"Liczba podsumowan: {len(result.lesson_summaries)}\n")
+
+    for index, lesson in enumerate(result.lesson_summaries, start=1):
+        lesson_time = "brak"
+        if lesson.lesson_start_time is not None:
+            if lesson.lesson_start_time.tzinfo is None:
+                lesson_time = lesson.lesson_start_time.strftime("%H:%M")
+            else:
+                lesson_time = lesson.lesson_start_time.astimezone().strftime("%H:%M")
+        print(f"[{index}] Godzina: {lesson_time}")
+        print(f"Uczen: {lesson.student_name}")
+        print(f"Notatki PDF: {lesson.source_pdf_name or 'brak'}")
+        print("Ostatnie notatki (na podstawie 3 ostatnich stron):")
+        print(lesson.recent_notes_summary)
         print("-" * 40)
 
 

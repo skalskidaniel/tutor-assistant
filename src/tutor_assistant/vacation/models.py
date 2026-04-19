@@ -17,14 +17,6 @@ class VacationRequest:
 
 
 @dataclass(frozen=True)
-class CalendarLessonEvent:
-    student_name: str
-    lesson_date: date
-    student_email: str | None = None
-    student_phone: str | None = None
-
-
-@dataclass(frozen=True)
 class StudentVacationNotice:
     student_name: str
     lesson_dates: tuple[date, ...]

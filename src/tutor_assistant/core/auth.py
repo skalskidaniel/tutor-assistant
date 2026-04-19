@@ -14,6 +14,7 @@ DRIVE_SCOPES = ("https://www.googleapis.com/auth/drive",)
 GMAIL_SEND_SCOPES = ("https://www.googleapis.com/auth/gmail.send",)
 GOOGLE_ONBOARDING_SCOPES = CALENDAR_SCOPES + DRIVE_SCOPES
 GOOGLE_VACATION_SCOPES = CALENDAR_SCOPES + GMAIL_SEND_SCOPES
+GOOGLE_CALENDAR_DRIVE_SCOPES = CALENDAR_SCOPES + DRIVE_SCOPES
 
 
 def load_google_credentials(

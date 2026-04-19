@@ -5,13 +5,14 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 
+from tutor_assistant.core.calendar import CalendarLessonEvent, LessonCalendarProvider
+
 from .models import (
-    CalendarLessonEvent,
     StudentVacationNotice,
     VacationRequest,
     VacationResult,
 )
-from .providers import LessonCalendarProvider, StudentEmailProvider
+from .providers import StudentEmailProvider
 
 SCHEDULE_URL = "https://calendar.app.google/wYDwAzjcXXfHD9bx5"
 

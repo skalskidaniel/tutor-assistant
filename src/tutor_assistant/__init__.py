@@ -5,6 +5,14 @@ from .drive_cleanup import (
     DriveCleanupService,
     GoogleDriveCleanupProvider,
 )
+from .daily_summary import (
+    BedrockLessonInsightsProvider,
+    DailyLessonSummary,
+    DailySummaryResult,
+    DailySummaryService,
+    GoogleDriveStudentNotesProvider,
+    PyMuPdfRecentPagesProvider,
+)
 from .onboarding import (
     GoogleDriveProvider,
     GoogleMeetProvider,
@@ -30,6 +38,12 @@ __all__ = [
     "DriveCleanupResult",
     "DriveCleanupService",
     "GoogleDriveCleanupProvider",
+    "BedrockLessonInsightsProvider",
+    "DailyLessonSummary",
+    "DailySummaryResult",
+    "DailySummaryService",
+    "GoogleDriveStudentNotesProvider",
+    "PyMuPdfRecentPagesProvider",
     "GoogleDriveProvider",
     "GoogleMeetProvider",
     "InMemoryDriveProvider",

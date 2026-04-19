@@ -14,11 +14,11 @@ dependencies = [
     "pydantic>=2.13.2",
     "pymupdf>=1.27.2.2",
     "python-dotenv>=1.2.2",
+    "ruff>=0.15.11",
 ]
 
 [project.scripts]
 tutor-assistant = "tutor_assistant.cli:main"
-tutor-assistant-onboard = "tutor_assistant.cli:main"
 
 [dependency-groups]
 dev = [
@@ -33,3 +33,6 @@ markers = [
 
 [tool.basedpyright]
 extraPaths = ["src"]
+
+[tool.uv]
+package = true
