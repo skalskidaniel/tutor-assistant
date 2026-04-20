@@ -257,7 +257,8 @@ class BedrockHomeworkMatcher:
         region_name: str | None = None,
     ) -> None:
         self._model_id = model_id or os.getenv(
-            "BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"
+            "BEDROCK_TASK_MODEL_ID",
+            os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
         )
         self._region_name = (
             region_name

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from tutor_assistant.agent import AgentToolDefaults, build_chat_session
 from tutor_assistant.daily_summary import (
     BedrockLessonInsightsProvider,
     DailySummaryService,
@@ -190,6 +191,48 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maksymalna liczba rownoleglych uploadow (domyslnie: 4)",
     )
 
+    chat = subparsers.add_parser(
+        "chat",
+        help="Tryb interaktywnego agenta (LangGraph + Bedrock)",
+    )
+    chat.add_argument(
+        "--calendar-id",
+        default="primary",
+        help="ID kalendarza Google (domyslnie: primary)",
+    )
+    chat.add_argument(
+        "--timezone",
+        default="Europe/Warsaw",
+        help="Strefa czasowa spotkan onboardingowych (domyslnie: Europe/Warsaw)",
+    )
+    chat.add_argument(
+        "--meeting-duration-minutes",
+        type=int,
+        default=60,
+        help="Dlugosc spotkania onboardingowego (domyslnie: 60)",
+    )
+    chat.add_argument(
+        "--drive-parent-folder-id",
+        default=None,
+        help="Folder nadrzedny, zawierajacy foldery uczniow",
+    )
+    chat.add_argument(
+        "--homework-db-folder-id",
+        default=None,
+        help="Folder bazy zadan domowych na Google Drive",
+    )
+    chat.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=4,
+        help="Maksymalna liczba rownoleglych analiz/uploadow (domyslnie: 4)",
+    )
+    chat.add_argument(
+        "--thread-id",
+        default="teacher-cli",
+        help="Identyfikator sesji konwersacji (domyslnie: teacher-cli)",
+    )
+
     return parser
 
 
@@ -215,6 +258,10 @@ def main() -> None:
 
     if args.command == "upload-homework":
         _run_upload_homework(args)
+        return
+
+    if args.command == "chat":
+        _run_chat(args)
         return
 
     raise RuntimeError(f"Nieznana komenda CLI: {args.command}")
@@ -402,6 +449,46 @@ def _run_upload_homework(args: argparse.Namespace) -> None:
         print(f"Szczegoly: {assignment.status_details}")
         print(f"Wgrane zadanie: {assignment.uploaded_homework_name or 'brak'}")
         print("-" * 40)
+
+
+def _run_chat(args: argparse.Namespace) -> None:
+    defaults = AgentToolDefaults(
+        calendar_id=args.calendar_id,
+        timezone=args.timezone,
+        meeting_duration_minutes=args.meeting_duration_minutes,
+        drive_parent_folder_id=args.drive_parent_folder_id,
+        homework_db_folder_id=args.homework_db_folder_id,
+        max_concurrency=args.max_concurrency,
+    )
+    session = build_chat_session(defaults=defaults, thread_id=args.thread_id)
+
+    print("Tryb chat uruchomiony. Wpisz 'exit' lub 'quit', aby zakonczyc.\n")
+
+    while True:
+        try:
+            user_input = input("Ty> ").strip()
+        except EOFError:
+            print("\nKoniec danych wejsciowych. Zamykam sesje.")
+            return
+        except KeyboardInterrupt:
+            print("\nPrzerwano. Zamykam sesje.")
+            return
+
+        if not user_input:
+            continue
+
+        if user_input.casefold() in {"exit", "quit"}:
+            print("Do uslyszenia!")
+            return
+
+        try:
+            response = session.ask(user_input)
+        except Exception as exc:  # noqa: BLE001
+            print(f"Blad agenta: {exc}\n")
+            continue
+
+        if response:
+            print(f"Agent> {response}\n")
 
 
 def _format_lesson_time_range(

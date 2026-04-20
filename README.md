@@ -52,3 +52,27 @@ imie-nazwisko/
 
 1. The teacher may ask the agent to upload homework to the students' folders for the classes they just had.
 2. The homework documents are selected from the teacher's "homework database", which contains files named according to the content inside.
+
+## Agent Chat (LangGraph + Bedrock)
+
+Interactive chat mode is available through CLI:
+
+```bash
+uv run python -m tutor_assistant chat
+```
+
+Type `exit` or `quit` to close the session.
+
+Useful optional arguments:
+
+- `--calendar-id`
+- `--drive-parent-folder-id`
+- `--homework-db-folder-id`
+- `--thread-id`
+
+### Bedrock model configuration via `.env`
+
+- `BEDROCK_AGENT_MODEL_ID` - model used by conversational agent (LangGraph chat)
+- `BEDROCK_TASK_MODEL_ID` - model used by task analyzers (daily summary, homework matcher)
+
+Both values can point to different Bedrock model IDs, so you can test model combinations independently.
