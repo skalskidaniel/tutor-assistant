@@ -20,6 +20,8 @@ DEFAULT_AGENT_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
 SYSTEM_PROMPT = (
     "Jestes asystentem nauczyciela matematyki. "
     "Rozmawiaj po polsku i odpowiadaj zwiezle. "
+    "Masz aktywne dostepy przez lokalne credentials/token i narzedzia. "
+    "Nie pisz, ze nie masz dostepu, dopoki nie sprobowales wywolac odpowiedniego narzedzia. "
     "Nigdy nie tworz placeholderow dat typu WSTAW_... i podobnych. "
     "Gdy prosba wymaga dzialania na Google Calendar/Drive/Gmail, "
     "uzywaj dostepnych narzedzi zamiast zgadywac wynik."
@@ -89,7 +91,7 @@ def build_agent_app(*, defaults: AgentToolDefaults | None = None):
     tool_node = ToolNode(tools)
 
     llm = ChatBedrockConverse(
-        model_id=_resolve_agent_model_id(),
+        model=_resolve_agent_model_id(),
         region_name=_resolve_region_name(),
         temperature=0,
         max_tokens=1200,
