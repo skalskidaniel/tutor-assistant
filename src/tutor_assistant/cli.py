@@ -8,6 +8,9 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from rich.console import Console
+from rich.prompt import Prompt
+from rich.text import Text
 
 from tutor_assistant.agent import AgentToolDefaults, build_chat_session
 from tutor_assistant.daily_summary import (
@@ -232,12 +235,23 @@ def build_parser() -> argparse.ArgumentParser:
         default="teacher-cli",
         help="Identyfikator sesji konwersacji (domyslnie: teacher-cli)",
     )
+    chat.add_argument(
+        "--hide-tools",
+        action="store_true",
+        help="Ukryj logi wywolan narzedzi w trakcie odpowiedzi agenta",
+    )
+    chat.add_argument(
+        "--show-reasoning",
+        action="store_true",
+        help="Pokaz krotkie logi procesu pracy agenta",
+    )
 
     return parser
 
 
 def main() -> None:
     load_dotenv(Path(".env"), override=True)
+    _configure_langsmith_env_aliases()
     args = build_parser().parse_args()
 
     if args.command == "onboard":
@@ -452,6 +466,7 @@ def _run_upload_homework(args: argparse.Namespace) -> None:
 
 
 def _run_chat(args: argparse.Namespace) -> None:
+    console = Console()
     defaults = AgentToolDefaults(
         calendar_id=args.calendar_id,
         timezone=args.timezone,
@@ -461,34 +476,123 @@ def _run_chat(args: argparse.Namespace) -> None:
         max_concurrency=args.max_concurrency,
     )
     session = build_chat_session(defaults=defaults, thread_id=args.thread_id)
+    show_tools = not args.hide_tools
+    show_reasoning = args.show_reasoning
 
-    print("Tryb chat uruchomiony. Wpisz 'exit' lub 'quit', aby zakonczyc.\n")
+    console.print("Tryb chat uruchomiony. Wpisz 'exit' lub 'quit', aby zakonczyc.\n")
 
     while True:
         try:
-            user_input = input("Ty> ").strip()
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            user_input = Prompt.ask(f"[dim]\\[{timestamp}][/dim] [bold cyan]Ty[/bold cyan]").strip()
         except EOFError:
-            print("\nKoniec danych wejsciowych. Zamykam sesje.")
+            console.print("\nKoniec danych wejsciowych. Zamykam sesje.")
             return
         except KeyboardInterrupt:
-            print("\nPrzerwano. Zamykam sesje.")
+            console.print("\nPrzerwano. Zamykam sesje.")
             return
 
         if not user_input:
             continue
 
         if user_input.casefold() in {"exit", "quit"}:
-            print("Do uslyszenia!")
+            console.print("Do uslyszenia!")
             return
 
+        status = console.status("[bold green]Agent mysli...[/bold green]", spinner="dots")
+        status.start()
+        status_running = True
+        started_response = False
+
         try:
-            response = session.ask(user_input)
+            for event in session.stream(user_input):
+                if event.kind == "tool":
+                    if show_tools:
+                        if event.status == "pending":
+                            status.update(f"[grey50]{event.text}...[/grey50]")
+                            if not status_running:
+                                status.start()
+                                status_running = True
+                        else:
+                            if status_running:
+                                status.update("[bold green]Agent mysli...[/bold green]")
+                            if started_response:
+                                console.print()
+                                started_response = False
+                            _print_tool_event(console, event.text, event.status, event.summary)
+                    continue
+
+                if not started_response:
+                    if status_running:
+                        status.stop()
+                        status_running = False
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    console.print(f"[dim]\\[{timestamp}][/dim] [bold magenta]Agent>[/bold magenta] ", end="")
+                    started_response = True
+                console.print(event.text, end="", highlight=False, markup=False)
         except Exception as exc:  # noqa: BLE001
-            print(f"Blad agenta: {exc}\n")
+            if status_running:
+                status.stop()
+                status_running = False
+            console.print(f"[red]Blad agenta:[/red] {exc}\n")
             continue
 
-        if response:
-            print(f"Agent> {response}\n")
+        if status_running:
+            status.stop()
+            status_running = False
+
+        if started_response:
+            console.print()
+            console.print()
+            continue
+
+        if show_reasoning:
+            console.print("[dim]Agent zakonczyl zadanie bez tresci odpowiedzi.[/dim]")
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        console.print(f"[dim]\\[{timestamp}][/dim] [bold magenta]Agent>[/bold magenta] Gotowe.\n")
+
+
+def _print_tool_event(
+    console: Console,
+    tool_name: str,
+    status: str | None,
+    summary: str | None,
+) -> None:
+    if status == "completed":
+        style = "green"
+    elif status == "error":
+        style = "red"
+    else:
+
+        style = "grey50"
+
+    text = Text()
+    text.append(tool_name, style=style)
+
+    console.print()
+    console.print(text)
+    console.print()
+
+
+def _configure_langsmith_env_aliases() -> None:
+    alias_map = {
+        "LANGCHAIN_TRACING_V2": "LANGSMITH_TRACING",
+        "LANGCHAIN_API_KEY": "LANGSMITH_API_KEY",
+        "LANGCHAIN_PROJECT": "LANGSMITH_PROJECT",
+        "LANGCHAIN_ENDPOINT": "LANGSMITH_ENDPOINT",
+    }
+
+    for langchain_var, langsmith_var in alias_map.items():
+        if os.getenv(langchain_var):
+            continue
+
+        langsmith_value = os.getenv(langsmith_var)
+        if langsmith_value:
+            os.environ[langchain_var] = langsmith_value
+
+
+def _is_truthy_env(value: str) -> bool:
+    return value.strip().casefold() in {"1", "true", "yes", "on"}
 
 
 def _format_lesson_time_range(

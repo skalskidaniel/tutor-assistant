@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import os
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any, Iterator, Literal, TypedDict
 from uuid import uuid4
 
 from langchain_aws import ChatBedrockConverse
@@ -22,14 +22,27 @@ SYSTEM_PROMPT = (
     "Rozmawiaj po polsku i odpowiadaj zwiezle. "
     "Masz aktywne dostepy przez lokalne credentials/token i narzedzia. "
     "Nie pisz, ze nie masz dostepu, dopoki nie sprobowales wywolac odpowiedniego narzedzia. "
-    "Nigdy nie tworz placeholderow dat typu WSTAW_... i podobnych. "
-    "Gdy prosba wymaga dzialania na Google Calendar/Drive/Gmail, "
-    "uzywaj dostepnych narzedzi zamiast zgadywac wynik."
-)
+        "Nigdy nie tworz placeholderow dat typu WSTAW_... i podobnych. "
+        "Gdy prosba wymaga dzialania na Google Calendar/Drive/Gmail, "
+        "uzywaj dostepnych narzedzi zamiast zgadywac wynik. "
+        "WAZNE: Kiedy uzywasz narzedzia build_daily_summary, "
+        "zawsze wypisuj jego wynik w swojej odpowiedzi DOKLADNIE 1:1 "
+        "(bez zadnego skracania, parafrazowania czy podsumowywania)."
+    )
 
 
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
+
+
+@dataclass(frozen=True)
+class ChatStreamEvent:
+    """Single event produced while streaming an agent response."""
+
+    kind: Literal["token", "tool"]
+    text: str
+    status: Literal["pending", "completed", "error"] | None = None
+    summary: str | None = None
 
 
 @dataclass
@@ -55,26 +68,78 @@ class AgentChatSession:
             return
         self.app.update_state(config, {"messages": removals})
 
-    def ask(self, user_input: str) -> str:
+    def stream(self, user_input: str) -> Iterator[ChatStreamEvent]:
         if not user_input.strip():
-            return ""
+            return
 
         payload = {"messages": [HumanMessage(content=user_input)]}
         config = {"configurable": {"thread_id": self.thread_id}}
-        try:
-            result = self.app.invoke(payload, config=config)
-        except Exception as exc:  # noqa: BLE001
-            details = str(exc)
-            if "tool_use" in details and "tool_result" in details:
-                self._reset_thread_state()
-                try:
-                    result = self.app.invoke(payload, config=config)
-                except Exception:
+
+        for attempt in range(3):
+            seen_tool_calls: set[str] = set()
+            try:
+                stream = self.app.stream(
+                    payload,
+                    config=config,
+                    stream_mode=["messages", "updates"],
+                )
+                for item in stream:
+                    for mode, chunk in _normalize_stream_item(item):
+                        if mode == "messages":
+                            for tool_name in _extract_pending_tool_names(chunk):
+                                key = f"{tool_name}:pending:None"
+                                if key in seen_tool_calls:
+                                    continue
+                                seen_tool_calls.add(key)
+                                yield ChatStreamEvent(
+                                    kind="tool",
+                                    text=tool_name,
+                                    status="pending",
+                                    summary=None,
+                                )
+
+                            token = _extract_message_token(chunk)
+                            if token:
+                                yield ChatStreamEvent(kind="token", text=token)
+                            continue
+
+                        if mode == "updates":
+                            for tool_name, status, summary in _extract_tool_statuses(chunk):
+                                key = f"{tool_name}:{status}:{summary}"
+                                if key in seen_tool_calls:
+                                    continue
+                                seen_tool_calls.add(key)
+                                yield ChatStreamEvent(
+                                    kind="tool",
+                                    text=tool_name,
+                                    status=status,
+                                    summary=summary,
+                                )
+                return
+            except Exception as exc:  # noqa: BLE001
+                details = str(exc)
+                if "tool_use" not in details or "tool_result" not in details or attempt == 2:
+                    raise
+
+                if attempt == 0:
+                    self._reset_thread_state()
+                else:
                     self.thread_id = f"{self.thread_id}-recovered-{uuid4().hex[:8]}"
-                    recovery_config = {"configurable": {"thread_id": self.thread_id}}
-                    result = self.app.invoke(payload, config=recovery_config)
-            else:
-                raise
+                config = {"configurable": {"thread_id": self.thread_id}}
+
+    def ask(self, user_input: str) -> str:
+        chunks: list[str] = []
+        for event in self.stream(user_input):
+            if event.kind == "token":
+                chunks.append(event.text)
+
+        text = "".join(chunks).strip()
+        if text:
+            return text
+
+        payload = {"messages": [HumanMessage(content=user_input)]}
+        config = {"configurable": {"thread_id": self.thread_id}}
+        result = self.app.invoke(payload, config=config)
 
         messages = result.get("messages", [])
         for message in reversed(messages):
@@ -131,3 +196,123 @@ def _resolve_agent_model_id() -> str:
 
 def _resolve_region_name() -> str:
     return os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION", "eu-central-1")
+
+
+def _normalize_stream_item(item: Any) -> Iterator[tuple[str, Any]]:
+    if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str):
+        yield item[0], item[1]
+        return
+
+    yield "messages", item
+
+
+def _extract_message_token(chunk: Any) -> str:
+    message = chunk
+    metadata = None
+    if isinstance(chunk, tuple) and len(chunk) == 2:
+        message, metadata = chunk
+
+    if isinstance(metadata, dict):
+        node_name = metadata.get("langgraph_node")
+        if isinstance(node_name, str) and node_name != "agent":
+            return ""
+
+    return _extract_text_from_message(message)
+
+
+def _extract_text_from_message(message: Any) -> str:
+    text = getattr(message, "text", None)
+    if isinstance(text, str) and text:
+        return text
+
+    content = getattr(message, "content", None)
+    return _extract_text_from_content(content)
+
+
+def _extract_text_from_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        fragments: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                fragments.append(item)
+            elif isinstance(item, dict):
+                value = item.get("text")
+                if isinstance(value, str):
+                    fragments.append(value)
+        return "".join(fragments)
+
+    return ""
+
+
+def _extract_pending_tool_names(chunk: Any) -> list[str]:
+    if isinstance(chunk, tuple) and len(chunk) == 2:
+        chunk = chunk[0]
+
+    tool_names: list[str] = []
+
+    tool_calls = getattr(chunk, "tool_calls", None)
+    if isinstance(tool_calls, list):
+        for tc in tool_calls:
+            if not isinstance(tc, dict):
+                continue
+            name = tc.get("name")
+            if isinstance(name, str) and name:
+                tool_names.append(name)
+
+    tool_call_chunks = getattr(chunk, "tool_call_chunks", None)
+    if isinstance(tool_call_chunks, list):
+        for tc in tool_call_chunks:
+            if not isinstance(tc, dict):
+                continue
+            name = tc.get("name")
+            if isinstance(name, str) and name:
+                tool_names.append(name)
+
+    return tool_names
+
+
+def _extract_tool_statuses(
+    chunk: Any,
+) -> list[tuple[str, Literal["completed", "error"], str]]:
+    if not isinstance(chunk, dict):
+        return []
+
+    tool_statuses: list[tuple[str, Literal["completed", "error"], str]] = []
+    for update in chunk.values():
+        if not isinstance(update, dict):
+            continue
+
+        messages = update.get("messages")
+        if not isinstance(messages, list):
+            continue
+
+        for message in messages:
+            tool_name = getattr(message, "name", None)
+            if not isinstance(tool_name, str) or not tool_name:
+                continue
+
+            content = _extract_text_from_content(getattr(message, "content", None))
+            status: Literal["completed", "error"]
+            if "Wystapil blad podczas wykonania narzedzia" in content:
+                status = "error"
+            else:
+                status = "completed"
+
+            tool_statuses.append((tool_name, status, _summarize_tool_content(content)))
+
+    return tool_statuses
+
+
+def _summarize_tool_content(content: str) -> str:
+    cleaned = " ".join(part.strip() for part in content.splitlines() if part.strip())
+    if not cleaned:
+        return "Brak wyniku."
+
+    if len(cleaned) <= 140:
+        return cleaned
+
+    truncated = cleaned[:137].rsplit(" ", 1)[0].rstrip()
+    return f"{truncated}..."
