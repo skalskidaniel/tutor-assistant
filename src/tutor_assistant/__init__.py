@@ -13,6 +13,13 @@ from .daily_summary import (
     GoogleDriveStudentNotesProvider,
     PyMuPdfRecentPagesProvider,
 )
+from .homework import (
+    BedrockHomeworkMatcher,
+    GoogleDriveHomeworkProvider,
+    HomeworkAssignment,
+    HomeworkService,
+    HomeworkUploadResult,
+)
 from .onboarding import (
     GoogleDriveProvider,
     GoogleMeetProvider,
@@ -44,6 +51,11 @@ __all__ = [
     "DailySummaryService",
     "GoogleDriveStudentNotesProvider",
     "PyMuPdfRecentPagesProvider",
+    "BedrockHomeworkMatcher",
+    "GoogleDriveHomeworkProvider",
+    "HomeworkAssignment",
+    "HomeworkService",
+    "HomeworkUploadResult",
     "GoogleDriveProvider",
     "GoogleMeetProvider",
     "InMemoryDriveProvider",

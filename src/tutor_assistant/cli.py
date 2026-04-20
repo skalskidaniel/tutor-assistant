@@ -19,6 +19,11 @@ from tutor_assistant.drive_cleanup import (
     DriveCleanupService,
     GoogleDriveCleanupProvider,
 )
+from tutor_assistant.homework import (
+    BedrockHomeworkMatcher,
+    GoogleDriveHomeworkProvider,
+    HomeworkService,
+)
 from tutor_assistant.core import GoogleCalendarLessonProvider
 from tutor_assistant.onboarding import (
     GoogleDriveProvider,
@@ -154,6 +159,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maksymalna liczba rownoleglych analiz lekcji (domyslnie: 4)",
     )
 
+    upload_homework = subparsers.add_parser(
+        "upload-homework",
+        help="Use Case 5: upload zadan domowych po lekcjach",
+    )
+    upload_homework.add_argument(
+        "--date",
+        default=None,
+        help="Data zajec YYYY-MM-DD (domyslnie dzisiaj)",
+    )
+    upload_homework.add_argument(
+        "--calendar-id",
+        default="primary",
+        help="ID kalendarza Google (domyslnie: primary)",
+    )
+    upload_homework.add_argument(
+        "--drive-parent-folder-id",
+        default=None,
+        help="Folder nadrzedny, zawierajacy foldery uczniow",
+    )
+    upload_homework.add_argument(
+        "--homework-db-folder-id",
+        default=None,
+        help="Folder bazy zadan domowych na Google Drive",
+    )
+    upload_homework.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=4,
+        help="Maksymalna liczba rownoleglych uploadow (domyslnie: 4)",
+    )
+
     return parser
 
 
@@ -175,6 +211,10 @@ def main() -> None:
 
     if args.command == "daily-summary":
         _run_daily_summary(args)
+        return
+
+    if args.command == "upload-homework":
+        _run_upload_homework(args)
         return
 
     raise RuntimeError(f"Nieznana komenda CLI: {args.command}")
@@ -310,6 +350,57 @@ def _run_daily_summary(args: argparse.Namespace) -> None:
         print(f"Notatki PDF: {lesson.source_pdf_name or 'brak'}")
         print("Ostatnie notatki (na podstawie 3 ostatnich stron):")
         print(lesson.recent_notes_summary)
+        print("-" * 40)
+
+
+def _run_upload_homework(args: argparse.Namespace) -> None:
+    target_date = date.fromisoformat(args.date) if args.date else date.today()
+    selected_parent_folder_id = args.drive_parent_folder_id or os.getenv(
+        "GOOGLE_DRIVE_PARENT_FOLDER_ID"
+    )
+    selected_homework_db_folder_id = args.homework_db_folder_id or os.getenv(
+        "GOOGLE_HOMEWORK_DATABASE_FOLDER_ID"
+    )
+
+    calendar_provider = GoogleCalendarLessonProvider(
+        calendar_id=args.calendar_id,
+        include_drive_scope=True,
+    )
+    notes_provider = GoogleDriveStudentNotesProvider(
+        parent_folder_id=selected_parent_folder_id
+    )
+    pdf_recent_pages_provider = PyMuPdfRecentPagesProvider(recent_pages_count=3)
+    insights_provider = BedrockLessonInsightsProvider()
+    homework_drive_provider = GoogleDriveHomeworkProvider(
+        parent_folder_id=selected_parent_folder_id,
+        homework_database_folder_id=selected_homework_db_folder_id,
+    )
+    homework_matcher = BedrockHomeworkMatcher()
+
+    service = HomeworkService(
+        calendar_provider=calendar_provider,
+        notes_provider=notes_provider,
+        pdf_recent_pages_provider=pdf_recent_pages_provider,
+        insights_provider=insights_provider,
+        homework_drive_provider=homework_drive_provider,
+        homework_matcher=homework_matcher,
+        max_concurrency=args.max_concurrency,
+    )
+    result = service.upload_homework_for_day(target_date=target_date)
+
+    print(f"Upload zadan domowych dla: {target_date.isoformat()}\n")
+    print(f"Liczba zaplanowanych lekcji: {result.scanned_events}")
+    print(f"Liczba przeslanych zadan: {result.uploaded_homeworks}\n")
+
+    for index, assignment in enumerate(result.assignments, start=1):
+        lesson_time = _format_lesson_time_range(
+            start=assignment.lesson_start_time,
+            end=assignment.lesson_end_time,
+        )
+        print(f"[{index}] Godzina: {lesson_time}")
+        print(f"Uczen: {assignment.student_name}")
+        print(f"Szczegoly: {assignment.status_details}")
+        print(f"Wgrane zadanie: {assignment.uploaded_homework_name or 'brak'}")
         print("-" * 40)
 
 

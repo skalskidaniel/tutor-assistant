@@ -28,10 +28,14 @@ from tutor_assistant.core import (  # pyright: ignore[reportMissingImports]
 
 @pytest.mark.integration
 def test_daily_summary_integration_real_google_and_bedrock() -> None:
-    run_enabled = os.getenv("GOOGLE_ENABLE_DAILY_SUMMARY_INTEGRATION_TEST") == "1"
+    run_enabled = (
+        os.getenv("GOOGLE_ENABLE_ALL_INTEGRATION_TESTS") == "1"
+        or os.getenv("GOOGLE_ENABLE_DAILY_SUMMARY_INTEGRATION_TEST") == "1"
+    )
     if not run_enabled:
         pytest.skip(
-            "Test daily-summary jest opt-in. Ustaw GOOGLE_ENABLE_DAILY_SUMMARY_INTEGRATION_TEST=1."
+            "Test daily-summary jest opt-in. Ustaw GOOGLE_ENABLE_DAILY_SUMMARY_INTEGRATION_TEST=1 "
+            "lub GOOGLE_ENABLE_ALL_INTEGRATION_TESTS=1."
         )
 
     credentials_path = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
