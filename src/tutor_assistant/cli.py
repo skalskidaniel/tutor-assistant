@@ -147,6 +147,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Folder nadrzedny, zawierajacy foldery uczniow",
     )
+    daily_summary.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=4,
+        help="Maksymalna liczba rownoleglych analiz lekcji (domyslnie: 4)",
+    )
 
     return parser
 
@@ -277,6 +283,7 @@ def _run_daily_summary(args: argparse.Namespace) -> None:
         notes_provider=notes_provider,
         pdf_recent_pages_provider=pdf_recent_pages_provider,
         insights_provider=insights_provider,
+        max_concurrency=args.max_concurrency,
     )
     result = service.build_summary_for_day(target_date=target_date)
 
