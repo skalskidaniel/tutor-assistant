@@ -22,6 +22,8 @@ SYSTEM_PROMPT = (
     "Rozmawiaj po polsku i odpowiadaj zwiezle. "
     "Masz aktywne dostepy przez lokalne credentials/token i narzedzia. "
     "Nie pisz, ze nie masz dostepu, dopoki nie sprobowales wywolac odpowiedniego narzedzia. "
+        "Gdy brakuje credentials.json albo token.json, najpierw uzyj login_google_user. "
+        "Jesli login_google_user potrzebuje danych OAuth, popros uzytkownika o GOOGLE_OAUTH_CLIENT_ID i GOOGLE_OAUTH_CLIENT_SECRET. "
         "Nigdy nie tworz placeholderow dat typu WSTAW_... i podobnych. "
         "Gdy prosba wymaga dzialania na Google Calendar/Drive/Gmail, "
         "uzywaj dostepnych narzedzi zamiast zgadywac wynik. "
@@ -115,6 +117,17 @@ class AgentChatSession:
                                     status=status,
                                     summary=summary,
                                 )
+                                if (
+                                    tool_name == "build_daily_summary"
+                                    and status == "completed"
+                                    and isinstance(summary, str)
+                                    and summary.strip()
+                                ):
+                                    yield ChatStreamEvent(
+                                        kind="token",
+                                        text=f"{summary}\n",
+                                    )
+                                    return
                 return
             except Exception as exc:  # noqa: BLE001
                 details = str(exc)
@@ -217,7 +230,22 @@ def _extract_message_token(chunk: Any) -> str:
         if isinstance(node_name, str) and node_name != "agent":
             return ""
 
+    if _has_tool_call_payload(message):
+        return ""
+
     return _extract_text_from_message(message)
+
+
+def _has_tool_call_payload(message: Any) -> bool:
+    tool_calls = getattr(message, "tool_calls", None)
+    if isinstance(tool_calls, list) and tool_calls:
+        return True
+
+    tool_call_chunks = getattr(message, "tool_call_chunks", None)
+    if isinstance(tool_call_chunks, list) and tool_call_chunks:
+        return True
+
+    return False
 
 
 def _extract_text_from_message(message: Any) -> str:
@@ -301,7 +329,11 @@ def _extract_tool_statuses(
             else:
                 status = "completed"
 
-            tool_statuses.append((tool_name, status, _summarize_tool_content(content)))
+            summary = _summarize_tool_content(content)
+            if tool_name == "build_daily_summary" and status == "completed":
+                summary = content or "Brak wyniku."
+
+            tool_statuses.append((tool_name, status, summary))
 
     return tool_statuses
 

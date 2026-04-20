@@ -569,7 +569,6 @@ def _print_tool_event(
     text = Text()
     text.append(tool_name, style=style)
 
-    console.print()
     console.print(text)
     console.print()
 

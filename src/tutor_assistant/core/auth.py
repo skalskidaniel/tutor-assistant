@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+import os
 from typing import cast
 
 from google.auth.transport.requests import Request
@@ -15,6 +17,54 @@ GMAIL_SEND_SCOPES = ("https://www.googleapis.com/auth/gmail.send",)
 GOOGLE_ONBOARDING_SCOPES = CALENDAR_SCOPES + DRIVE_SCOPES
 GOOGLE_VACATION_SCOPES = CALENDAR_SCOPES + GMAIL_SEND_SCOPES
 GOOGLE_CALENDAR_DRIVE_SCOPES = CALENDAR_SCOPES + DRIVE_SCOPES
+
+DEFAULT_GOOGLE_AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
+DEFAULT_GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
+
+
+def create_google_desktop_credentials_file(
+    *,
+    credentials_path: Path,
+    client_id: str,
+    client_secret: str,
+    project_id: str | None = None,
+    auth_uri: str = DEFAULT_GOOGLE_AUTH_URI,
+    token_uri: str = DEFAULT_GOOGLE_TOKEN_URI,
+) -> None:
+    payload = {
+        "installed": {
+            "client_id": client_id,
+            "project_id": project_id or "tutor-assistant",
+            "auth_uri": auth_uri,
+            "token_uri": token_uri,
+            "client_secret": client_secret,
+            "redirect_uris": ["http://localhost"],
+        }
+    }
+    credentials_path.write_text(
+        json.dumps(payload, ensure_ascii=True, indent=2),
+        encoding="utf-8",
+    )
+
+
+def ensure_google_credentials_file(*, credentials_path: Path) -> bool:
+    if credentials_path.exists():
+        return True
+
+    client_id = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+    client_secret = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "").strip()
+    if not client_id or not client_secret:
+        return False
+
+    create_google_desktop_credentials_file(
+        credentials_path=credentials_path,
+        client_id=client_id,
+        client_secret=client_secret,
+        project_id=os.getenv("GOOGLE_OAUTH_PROJECT_ID"),
+        auth_uri=os.getenv("GOOGLE_OAUTH_AUTH_URI", DEFAULT_GOOGLE_AUTH_URI),
+        token_uri=os.getenv("GOOGLE_OAUTH_TOKEN_URI", DEFAULT_GOOGLE_TOKEN_URI),
+    )
+    return True
 
 
 def load_google_credentials(
@@ -46,10 +96,11 @@ def load_google_credentials(
     ):
         credentials.refresh(Request())
     else:
-        if not credentials_path.exists():
+        if not ensure_google_credentials_file(credentials_path=credentials_path):
             raise FileNotFoundError(
                 f"Brak pliku credentials: {credentials_path}. "
-                "Pobierz go z Google Cloud Console."
+                "Uruchom narzedzie login_google_user albo ustaw GOOGLE_OAUTH_CLIENT_ID "
+                "i GOOGLE_OAUTH_CLIENT_SECRET."
             )
         flow = InstalledAppFlow.from_client_secrets_file(str(credentials_path), scopes)
         credentials = cast(Credentials, flow.run_local_server(port=0))

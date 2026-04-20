@@ -4,6 +4,8 @@ from .auth import (
     GOOGLE_CALENDAR_DRIVE_SCOPES,
     GOOGLE_ONBOARDING_SCOPES,
     GOOGLE_VACATION_SCOPES,
+    create_google_desktop_credentials_file,
+    ensure_google_credentials_file,
     load_google_credentials,
 )
 from .calendar import (
@@ -19,6 +21,8 @@ __all__ = [
     "GOOGLE_CALENDAR_DRIVE_SCOPES",
     "GOOGLE_ONBOARDING_SCOPES",
     "GOOGLE_VACATION_SCOPES",
+    "create_google_desktop_credentials_file",
+    "ensure_google_credentials_file",
     "GoogleCalendarLessonProvider",
     "InMemoryLessonCalendarProvider",
     "LessonCalendarProvider",

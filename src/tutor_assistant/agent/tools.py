@@ -10,7 +10,12 @@ from typing import Literal
 
 from langchain_core.tools import BaseTool, tool
 
-from tutor_assistant.core import GoogleCalendarLessonProvider
+from tutor_assistant.core import (
+    GOOGLE_ONBOARDING_SCOPES,
+    GoogleCalendarLessonProvider,
+    create_google_desktop_credentials_file,
+    load_google_credentials,
+)
 from tutor_assistant.daily_summary import (
     BedrockLessonInsightsProvider,
     DailySummaryService,
@@ -96,6 +101,61 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
             f"- token_file_exists: {'tak' if token_path.exists() else 'nie'}",
         ]
         return "\n".join(lines)
+
+    @tool
+    def login_google_user(
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        project_id: str | None = None,
+        run_browser_auth: bool = True,
+    ) -> str:
+        """Tworzy credentials.json i opcjonalnie uruchamia logowanie Google uzytkownika."""
+
+        try:
+            credentials_path = Path(os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json"))
+            token_path = Path(os.getenv("GOOGLE_TOKEN_PATH", "token.json"))
+
+            resolved_client_id = (
+                client_id or os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+            ).strip()
+            resolved_client_secret = (
+                client_secret or os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
+            ).strip()
+
+            if resolved_client_id and resolved_client_secret:
+                create_google_desktop_credentials_file(
+                    credentials_path=credentials_path,
+                    client_id=resolved_client_id,
+                    client_secret=resolved_client_secret,
+                    project_id=project_id or os.getenv("GOOGLE_OAUTH_PROJECT_ID"),
+                )
+            elif not credentials_path.exists():
+                raise ValueError(
+                    "Brak client_id/client_secret. Podaj je jawnie lub ustaw "
+                    "GOOGLE_OAUTH_CLIENT_ID i GOOGLE_OAUTH_CLIENT_SECRET."
+                )
+
+            if run_browser_auth:
+                load_google_credentials(
+                    credentials_path=credentials_path,
+                    token_path=token_path,
+                    scopes=GOOGLE_ONBOARDING_SCOPES,
+                )
+
+            lines = [
+                "Logowanie Google przygotowane pomyslnie.",
+                f"credentials_path: {credentials_path}",
+                f"token_path: {token_path}",
+                f"credentials_file_exists: {'tak' if credentials_path.exists() else 'nie'}",
+                f"token_file_exists: {'tak' if token_path.exists() else 'nie'}",
+            ]
+            if run_browser_auth:
+                lines.append("OAuth wykonany (przegladarka uruchomiona lokalnie).")
+            else:
+                lines.append("OAuth pominiety (run_browser_auth=False).")
+            return "\n".join(lines)
+        except Exception as exc:  # noqa: BLE001
+            return _tool_error_message(exc)
 
     @tool
     def onboard_student(
@@ -383,6 +443,7 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
     return [
         get_current_datetime,
         get_agent_configuration,
+        login_google_user,
         onboard_student,
         cleanup_drive,
         prepare_vacation_notifications,
