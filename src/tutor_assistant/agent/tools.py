@@ -115,19 +115,25 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
             credentials_path = Path(os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json"))
             token_path = Path(os.getenv("GOOGLE_TOKEN_PATH", "token.json"))
 
-            resolved_client_id = (
-                client_id or os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
-            ).strip()
-            resolved_client_secret = (
-                client_secret or os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
-            ).strip()
+            resolved_client_id = _resolve_oauth_value(
+                explicit_value=client_id,
+                env_var_name="GOOGLE_OAUTH_CLIENT_ID",
+            )
+            resolved_client_secret = _resolve_oauth_value(
+                explicit_value=client_secret,
+                env_var_name="GOOGLE_OAUTH_CLIENT_SECRET",
+            )
+            resolved_project_id = _resolve_oauth_value(
+                explicit_value=project_id,
+                env_var_name="GOOGLE_OAUTH_PROJECT_ID",
+            )
 
             if resolved_client_id and resolved_client_secret:
                 create_google_desktop_credentials_file(
                     credentials_path=credentials_path,
                     client_id=resolved_client_id,
                     client_secret=resolved_client_secret,
-                    project_id=project_id or os.getenv("GOOGLE_OAUTH_PROJECT_ID"),
+                    project_id=resolved_project_id or None,
                 )
             elif not credentials_path.exists():
                 raise ValueError(
@@ -191,7 +197,13 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
             )
 
             meet_provider = GoogleMeetProvider(
-                calendar_id=calendar_id or resolved_defaults.calendar_id,
+                calendar_id=(
+                    _resolve_runtime_value(
+                        explicit_value=calendar_id,
+                        fallback_value=resolved_defaults.calendar_id,
+                    )
+                    or "primary"
+                ),
                 timezone=timezone or resolved_defaults.timezone,
                 meeting_duration_minutes=(
                     meeting_duration_minutes
@@ -201,7 +213,10 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
                 schedule=schedule,
             )
             drive_provider = GoogleDriveProvider(
-                parent_folder_id=drive_parent_folder_id or default_drive_parent_folder_id
+                parent_folder_id=_resolve_runtime_value(
+                    explicit_value=drive_parent_folder_id,
+                    fallback_value=default_drive_parent_folder_id,
+                )
             )
 
             service = StudentWelcomeService(
@@ -228,7 +243,10 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
 
         try:
             provider = GoogleDriveCleanupProvider(
-                parent_folder_id=drive_parent_folder_id or default_drive_parent_folder_id
+                parent_folder_id=_resolve_runtime_value(
+                    explicit_value=drive_parent_folder_id,
+                    fallback_value=default_drive_parent_folder_id,
+                )
             )
             service = DriveCleanupService(provider=provider)
             result = service.cleanup()
@@ -261,7 +279,13 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
             request = VacationRequest(start_date=vacation_start, end_date=vacation_end)
 
             calendar_provider = GoogleCalendarLessonProvider(
-                calendar_id=calendar_id or resolved_defaults.calendar_id
+                calendar_id=(
+                    _resolve_runtime_value(
+                        explicit_value=calendar_id,
+                        fallback_value=resolved_defaults.calendar_id,
+                    )
+                    or "primary"
+                )
             )
             email_provider = GmailProvider() if send_emails else None
             service = VacationNotificationService(
@@ -313,12 +337,24 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
                 default_to_today=True,
             )
 
+            selected_calendar_id = (
+                _resolve_runtime_value(
+                    explicit_value=calendar_id,
+                    fallback_value=resolved_defaults.calendar_id,
+                )
+                or "primary"
+            )
+            selected_parent_folder_id = _resolve_runtime_value(
+                explicit_value=drive_parent_folder_id,
+                fallback_value=default_drive_parent_folder_id,
+            )
+
             calendar_provider = GoogleCalendarLessonProvider(
-                calendar_id=calendar_id or resolved_defaults.calendar_id,
+                calendar_id=selected_calendar_id,
                 include_drive_scope=True,
             )
             notes_provider = GoogleDriveStudentNotesProvider(
-                parent_folder_id=drive_parent_folder_id or default_drive_parent_folder_id
+                parent_folder_id=selected_parent_folder_id
             )
             pdf_recent_pages_provider = PyMuPdfRecentPagesProvider(recent_pages_count=3)
             insights_provider = BedrockLessonInsightsProvider()
@@ -379,14 +415,27 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
             )
 
             selected_parent_folder_id = (
-                drive_parent_folder_id or default_drive_parent_folder_id
+                _resolve_runtime_value(
+                    explicit_value=drive_parent_folder_id,
+                    fallback_value=default_drive_parent_folder_id,
+                )
             )
             selected_homework_database_folder_id = (
-                homework_db_folder_id or default_homework_db_folder_id
+                _resolve_runtime_value(
+                    explicit_value=homework_db_folder_id,
+                    fallback_value=default_homework_db_folder_id,
+                )
+            )
+            selected_calendar_id = (
+                _resolve_runtime_value(
+                    explicit_value=calendar_id,
+                    fallback_value=resolved_defaults.calendar_id,
+                )
+                or "primary"
             )
 
             calendar_provider = GoogleCalendarLessonProvider(
-                calendar_id=calendar_id or resolved_defaults.calendar_id,
+                calendar_id=selected_calendar_id,
                 include_drive_scope=True,
             )
             notes_provider = GoogleDriveStudentNotesProvider(
@@ -463,7 +512,8 @@ def _parse_date_value(
             return date.today()
         raise ValueError(f"Pole {field_name} jest wymagane.")
 
-    normalized = value.strip().casefold()
+    stripped_value = value.strip()
+    normalized = _normalize_relative_date_keyword(stripped_value)
     if normalized in {
         "dzis",
         "dzisiaj",
@@ -471,17 +521,63 @@ def _parse_date_value(
         "wstaw_tu_date_dzisiejsza",
     }:
         return date.today()
-    if normalized in {"jutro", "tomorrow"}:
+    if normalized in {"jutro", "tomorrow"} or normalized.startswith("jutrzejsz"):
         return date.today() + timedelta(days=1)
-    if normalized in {"wczoraj", "yesterday"}:
+    if normalized in {"wczoraj", "yesterday"} or normalized.startswith("wczorajsz"):
         return date.today() - timedelta(days=1)
 
     try:
-        return date.fromisoformat(value)
+        return date.fromisoformat(stripped_value)
     except ValueError as exc:
         raise ValueError(
             f"Pole {field_name} musi miec format YYYY-MM-DD. Otrzymano: {value}"
         ) from exc
+
+
+def _normalize_relative_date_keyword(value: str) -> str:
+    return value.casefold().strip(" \t\n\r.,;:!?\"'`()[]{}")
+
+
+def _resolve_oauth_value(*, explicit_value: str | None, env_var_name: str) -> str:
+    explicit = (explicit_value or "").strip()
+    if explicit and not _looks_like_placeholder(explicit):
+        return explicit
+
+    fallback = os.getenv(env_var_name, "").strip()
+    return fallback if not _looks_like_placeholder(fallback) else ""
+
+
+def _resolve_runtime_value(
+    *,
+    explicit_value: str | None,
+    fallback_value: str | None,
+) -> str | None:
+    explicit = (explicit_value or "").strip()
+    if explicit and not _looks_like_placeholder(explicit):
+        return explicit
+
+    fallback = (fallback_value or "").strip()
+    if fallback and not _looks_like_placeholder(fallback):
+        return fallback
+
+    return None
+
+
+def _looks_like_placeholder(value: str) -> bool:
+    normalized = value.casefold().strip()
+    if not normalized:
+        return False
+
+    markers = (
+        "wstaw",
+        "placeholder",
+        "twoj_",
+        "twoje_",
+        "your_",
+        "<",
+        ">",
+    )
+    return any(marker in normalized for marker in markers)
 
 
 def _tool_error_message(error: Exception) -> str:

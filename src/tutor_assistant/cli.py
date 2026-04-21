@@ -529,7 +529,14 @@ def _run_chat(args: argparse.Namespace) -> None:
                     timestamp = datetime.now().strftime("%H:%M:%S")
                     console.print(f"[dim]\\[{timestamp}][/dim] [bold magenta]Agent>[/bold magenta] ", end="")
                     started_response = True
-                console.print(event.text, end="", highlight=False, markup=False)
+                event_style = "bright_blue" if event.kind == "tool_output" else None
+                console.print(
+                    event.text,
+                    end="",
+                    highlight=False,
+                    markup=False,
+                    style=event_style,
+                )
         except Exception as exc:  # noqa: BLE001
             if status_running:
                 status.stop()
