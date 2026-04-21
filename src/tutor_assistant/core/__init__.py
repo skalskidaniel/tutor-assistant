@@ -14,6 +14,7 @@ from .calendar import (
     InMemoryLessonCalendarProvider,
     LessonCalendarProvider,
 )
+from .memory import DEFAULT_MEMORY_NAMESPACE, MemoryService
 from .utils import slugify
 
 __all__ = [
@@ -27,5 +28,7 @@ __all__ = [
     "InMemoryLessonCalendarProvider",
     "LessonCalendarProvider",
     "load_google_credentials",
+    "DEFAULT_MEMORY_NAMESPACE",
+    "MemoryService",
     "slugify",
 ]

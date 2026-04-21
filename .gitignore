@@ -50,6 +50,7 @@ htmlcov/
 !.env.example
 credentials.json
 token.json
+.agent_memory.json
 
 # Runtime/log files
 *.log

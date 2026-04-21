@@ -34,6 +34,7 @@ from tutor_assistant.homework import (
     HomeworkService,
 )
 from tutor_assistant.core import GoogleCalendarLessonProvider
+from tutor_assistant.core.memory import DEFAULT_MEMORY_NAMESPACE, MemoryService
 from tutor_assistant.onboarding import (
     GoogleDriveProvider,
     GoogleMeetProvider,
@@ -251,6 +252,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pokaz krotkie logi procesu pracy agenta",
     )
 
+    memory_set = subparsers.add_parser(
+        "memory-set",
+        help="Zapisuje trwala wartosc w pamieci agenta",
+    )
+    memory_set.add_argument("--key", required=True, help="Klucz pamieci")
+    memory_set.add_argument("--value", required=True, help="Wartosc do zapisania")
+    memory_set.add_argument(
+        "--thread-id",
+        default=DEFAULT_MEMORY_NAMESPACE,
+        help="Namespace pamieci (domyslnie: teacher-cli)",
+    )
+
+    memory_list = subparsers.add_parser(
+        "memory-list",
+        help="Wyswietla zapisana pamiec agenta",
+    )
+    memory_list.add_argument(
+        "--thread-id",
+        default=DEFAULT_MEMORY_NAMESPACE,
+        help="Namespace pamieci (domyslnie: teacher-cli)",
+    )
+
+    memory_delete = subparsers.add_parser(
+        "memory-delete",
+        help="Usuwa klucz z pamieci agenta",
+    )
+    memory_delete.add_argument("--key", required=True, help="Klucz pamieci")
+    memory_delete.add_argument(
+        "--thread-id",
+        default=DEFAULT_MEMORY_NAMESPACE,
+        help="Namespace pamieci (domyslnie: teacher-cli)",
+    )
+
     return parser
 
 
@@ -281,6 +315,18 @@ def main() -> None:
 
     if args.command == "chat":
         _run_chat(args)
+        return
+
+    if args.command == "memory-set":
+        _run_memory_set(args)
+        return
+
+    if args.command == "memory-list":
+        _run_memory_list(args)
+        return
+
+    if args.command == "memory-delete":
+        _run_memory_delete(args)
         return
 
     raise RuntimeError(f"Nieznana komenda CLI: {args.command}")
@@ -574,6 +620,40 @@ def _run_chat(args: argparse.Namespace) -> None:
         if show_reasoning:
             console.print("[dim]Agent zakonczyl zadanie bez tresci odpowiedzi.[/dim]")
         console.print("[bold #e27d60]Agent>[/bold #e27d60] Gotowe.\n")
+
+
+def _run_memory_set(args: argparse.Namespace) -> None:
+    memory_service = MemoryService()
+    memory_service.set(namespace=args.thread_id, key=args.key, value=args.value)
+
+    print("Zapisano wartosc w pamieci agenta.\n")
+    print(f"thread_id: {args.thread_id}")
+    print(f"key: {args.key}")
+
+
+def _run_memory_list(args: argparse.Namespace) -> None:
+    memory_service = MemoryService()
+    entries = memory_service.get_all(namespace=args.thread_id)
+
+    print(f"Pamiec agenta dla thread_id={args.thread_id}:\n")
+    if not entries:
+        print("(pusto)")
+        return
+
+    for key in sorted(entries):
+        print(f"- {key}: {entries[key]}")
+
+
+def _run_memory_delete(args: argparse.Namespace) -> None:
+    memory_service = MemoryService()
+    deleted = memory_service.delete(namespace=args.thread_id, key=args.key)
+
+    print(f"thread_id: {args.thread_id}")
+    print(f"key: {args.key}")
+    if deleted:
+        print("Status: usunieto")
+    else:
+        print("Status: brak klucza")
 
 
 def _print_chat_header(console: Console, model_id: str) -> None:

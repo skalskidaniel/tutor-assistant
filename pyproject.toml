@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "boto3>=1.42.90",
+    "dateparser>=1.4.0",
     "fitz>=0.0.1.dev2",
     "google-api-python-client>=2.194.0",
     "google-auth>=2.49.2",

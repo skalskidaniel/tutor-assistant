@@ -70,6 +70,24 @@ Useful optional arguments:
 - `--homework-db-folder-id`
 - `--thread-id`
 
+Memory can also be managed from CLI:
+
+```bash
+uv run python -m tutor_assistant memory-set --key reply_style --value "krotko i rzeczowo"
+uv run python -m tutor_assistant memory-list
+uv run python -m tutor_assistant memory-delete --key reply_style
+```
+
+### Trwala pamiec agenta
+
+Chat agent ma lokalna pamiec trwala, zapisywana w pliku `.agent_memory.json`.
+
+- Pamięć jest izolowana po `--thread-id` (kazdy thread to osobna przestrzen danych).
+- Agent moze zapisywac preferencje i ustawienia przez narzedzie `save_to_memory`.
+- Agent moze usuwac zapisane dane przez `delete_from_memory`.
+- Agent moze wyswietlic obecna pamiec przez `read_memory`.
+- Lokalizacje pliku pamieci mozna zmienic przez `TUTOR_AGENT_MEMORY_PATH`.
+
 ### Bedrock model configuration via `.env`
 
 - `BEDROCK_AGENT_MODEL_ID` - model used by conversational agent (Strands chat)

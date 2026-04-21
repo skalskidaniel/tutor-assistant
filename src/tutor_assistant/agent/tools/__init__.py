@@ -26,10 +26,12 @@ from tutor_assistant.vacation import (
     GmailProvider,
     VacationNotificationService,
 )
+from tutor_assistant.core.memory import DEFAULT_MEMORY_NAMESPACE, MemoryService
 
 from .auth import make_login_google_user_tool
 from .drive_cleanup import make_cleanup_drive_tool
 from .homework import make_upload_homework_for_day_tool
+from .memory import make_memory_tools
 from .models import AgentToolDefaults
 from .onboarding import make_onboard_student_tool
 from .summary import make_build_daily_summary_tool
@@ -43,7 +45,9 @@ __all__ = [
 
 
 def create_agent_tools(
-    *, defaults: AgentToolDefaults | None = None
+    *,
+    defaults: AgentToolDefaults | None = None,
+    memory_namespace: str = DEFAULT_MEMORY_NAMESPACE,
 ) -> list[Callable[..., object]]:
     resolved_defaults = defaults or AgentToolDefaults()
     default_drive_parent_folder_id = (
@@ -122,6 +126,12 @@ def create_agent_tools(
         drive_provider=onboarding_drive_provider,
     )
 
+    memory_service = MemoryService()
+    memory_tools = make_memory_tools(
+        memory_service=memory_service,
+        namespace=memory_namespace,
+    )
+
     return [
         make_get_current_datetime_tool(),
         make_get_agent_configuration_tool(
@@ -135,4 +145,5 @@ def create_agent_tools(
         make_prepare_vacation_notifications_tool(vacation_service),
         make_build_daily_summary_tool(daily_summary_service),
         make_upload_homework_for_day_tool(homework_service),
+        *memory_tools,
     ]

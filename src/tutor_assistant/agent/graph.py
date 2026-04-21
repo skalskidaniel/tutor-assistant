@@ -12,6 +12,7 @@ from typing import Any, Iterator, Literal
 
 from strands import Agent
 from strands.models import BedrockModel
+from tutor_assistant.core.memory import DEFAULT_MEMORY_NAMESPACE, MemoryService
 
 from .tools import AgentToolDefaults, create_agent_tools
 
@@ -47,7 +48,10 @@ SYSTEM_PROMPT = (
     "Nie wolno modyfikowac ich wyniku ani jednego znaku. "
     "Zwracaj go dokladnie 1:1, opakowany w znaczniki: "
     "<tool_output> ... </tool_output>. "
-    "Nie dodawaj zadnego tekstu przed ani po tych znacznikach."
+    "Nie dodawaj zadnego tekstu przed ani po tych znacznikach. "
+    "Gdy uzytkownik prosi o zapamietanie preferencji, domyslnych identyfikatorow "
+    "(np. kalendarza/folderow) lub innych ustawien, uzyj narzedzia save_to_memory. "
+    "Gdy uzytkownik prosi o usuniecie zapamietanych danych, uzyj delete_from_memory."
 )
 
 
@@ -174,8 +178,17 @@ class AgentChatSession:
         return resolved or "Gotowe."
 
 
-def build_agent_app(*, defaults: AgentToolDefaults | None = None) -> Agent:
-    tools = create_agent_tools(defaults=defaults)
+def build_agent_app(
+    *,
+    defaults: AgentToolDefaults | None = None,
+    thread_id: str = DEFAULT_MEMORY_NAMESPACE,
+) -> Agent:
+    memory_namespace = _resolve_memory_namespace(thread_id)
+    tools = create_agent_tools(
+        defaults=defaults,
+        memory_namespace=memory_namespace,
+    )
+    system_prompt = _build_system_prompt(thread_id=thread_id)
     model = BedrockModel(
         model_id=_resolve_agent_model_id(),
         region_name=_resolve_region_name(),
@@ -186,7 +199,7 @@ def build_agent_app(*, defaults: AgentToolDefaults | None = None) -> Agent:
         model=model,
         tools=tools,
         callback_handler=None,
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=system_prompt,
     )
 
 
@@ -195,7 +208,7 @@ def build_chat_session(
     defaults: AgentToolDefaults | None = None,
     thread_id: str = "teacher-cli",
 ) -> AgentChatSession:
-    app = build_agent_app(defaults=defaults)
+    app = build_agent_app(defaults=defaults, thread_id=thread_id)
     return AgentChatSession(app=app, thread_id=thread_id)
 
 
@@ -319,38 +332,24 @@ def _format_passthrough_tool_output(raw_output: str) -> str:
 
 
 def _prepare_user_input(user_input: str) -> str:
-    hint = _infer_relative_date_hint(user_input)
-    if hint is None:
-        return user_input
-
-    return (
-        f"{user_input}\n\n"
-        "[UWAGA DLA ASYSTENTA: To pytanie dotyczy daty wzglednej. "
-        f"Zinterpretowana data: {hint['iso_date']}. "
-        "Przy uzyciu narzedzia build_daily_summary lub upload_homework_for_day "
-        f"USTAW target_date='{hint['tool_value']}' "
-        f"(mozna tez uzyc ISO: {hint['iso_date']}). "
-        "Nie pomijaj target_date w tym zapytaniu.]"
-    )
+    return user_input
 
 
-def _infer_relative_date_hint(user_input: str) -> dict[str, str] | None:
-    normalized = user_input.casefold()
+def _build_system_prompt(*, thread_id: str) -> str:
+    namespace = _resolve_memory_namespace(thread_id)
+    memory_service = MemoryService()
+    entries = memory_service.get_all(namespace=namespace)
+    if not entries:
+        return SYSTEM_PROMPT
 
-    if any(keyword in normalized for keyword in ("pojutrze", "day after tomorrow")):
-        target = date.today() + timedelta(days=2)
-        return {"tool_value": target.isoformat(), "iso_date": target.isoformat()}
+    memory_lines = ["<agent_memory>"]
+    for key in sorted(entries):
+        memory_lines.append(f"- {key}: {entries[key]}")
+    memory_lines.append("</agent_memory>")
+    return f"{SYSTEM_PROMPT}\n\n" + "\n".join(memory_lines)
 
-    if any(keyword in normalized for keyword in ("jutro", "jutrzejsz", "tomorrow")):
-        target = date.today() + timedelta(days=1)
-        return {"tool_value": "jutro", "iso_date": target.isoformat()}
 
-    if any(keyword in normalized for keyword in ("wczoraj", "wczorajsz", "yesterday")):
-        target = date.today() - timedelta(days=1)
-        return {"tool_value": "wczoraj", "iso_date": target.isoformat()}
+def _resolve_memory_namespace(thread_id: str) -> str:
+    value = thread_id.strip()
+    return value if value else DEFAULT_MEMORY_NAMESPACE
 
-    if any(keyword in normalized for keyword in ("dzis", "dzisiaj", "today")):
-        target = date.today()
-        return {"tool_value": target.isoformat(), "iso_date": target.isoformat()}
-
-    return None

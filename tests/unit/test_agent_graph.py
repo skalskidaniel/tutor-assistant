@@ -1,29 +1,14 @@
-from datetime import date, timedelta
-
 from tutor_assistant.agent.graph import (  # pyright: ignore[reportMissingImports]
+    _build_system_prompt,
     _format_passthrough_tool_output,
-    _infer_relative_date_hint,
     _is_passthrough_tool,
     _prepare_user_input,
+    _resolve_memory_namespace,
 )
+from tutor_assistant.core.memory import MemoryService
 
 
-def test_infer_relative_date_hint_for_tomorrow() -> None:
-    hint = _infer_relative_date_hint("Z kim mam zajecia jutro?")
-
-    assert hint is not None
-    assert hint["tool_value"] == "jutro"
-    assert hint["iso_date"] == (date.today() + timedelta(days=1)).isoformat()
-
-
-def test_prepare_user_input_adds_target_date_instruction_for_relative_day() -> None:
-    prompt = _prepare_user_input("Czy mam jutrzejsze lekcje?")
-
-    assert "[UWAGA DLA ASYSTENTA:" in prompt
-    assert "target_date='jutro'" in prompt
-
-
-def test_prepare_user_input_leaves_non_relative_prompt_unchanged() -> None:
+def test_prepare_user_input_leaves_prompt_unchanged() -> None:
     original = "Podaj konfiguracje agenta"
     assert _prepare_user_input(original) == original
 
@@ -41,3 +26,21 @@ def test_format_passthrough_tool_output_wraps_raw_output_without_changes() -> No
     formatted = _format_passthrough_tool_output(raw_output)
 
     assert formatted == "<tool_output>\nLinia 1\nLinia 2\n</tool_output>\n"
+
+
+def test_resolve_memory_namespace_returns_default_for_blank_thread_id() -> None:
+    assert _resolve_memory_namespace("   ") == "teacher-cli"
+
+
+def test_build_system_prompt_includes_saved_memory(monkeypatch, tmp_path) -> None:
+    memory_file = tmp_path / "agent-memory.json"
+    monkeypatch.setenv("TUTOR_AGENT_MEMORY_PATH", str(memory_file))
+
+    memory_service = MemoryService(memory_path=memory_file)
+    memory_service.set(namespace="teacher-cli", key="styl", value="krotko")
+
+    prompt = _build_system_prompt(thread_id="teacher-cli")
+
+    assert "<agent_memory>" in prompt
+    assert "- styl: krotko" in prompt
+    assert "</agent_memory>" in prompt

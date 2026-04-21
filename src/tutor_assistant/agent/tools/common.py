@@ -2,6 +2,7 @@ import os
 from datetime import date, datetime, timedelta
 from typing import Callable
 
+import dateparser
 from strands import tool
 
 try:
@@ -47,10 +48,25 @@ def parse_date_value(
 
     try:
         return date.fromisoformat(stripped_value)
-    except ValueError as exc:
-        raise ValueError(
-            f"Pole {field_name} musi miec format YYYY-MM-DD. Otrzymano: {value}"
-        ) from exc
+    except ValueError:
+        pass
+
+    cleaned_value = stripped_value.lower()
+    for prefix in ["w przyszły ", "przyszły ", "w najbliższy ", "najbliższy ", "w nastepny ", "w następny "]:
+        if cleaned_value.startswith(prefix):
+            cleaned_value = cleaned_value[len(prefix):]
+            
+    parsed = dateparser.parse(
+        cleaned_value,
+        languages=["pl", "en"],
+        settings={"PREFER_DATES_FROM": "future", "STRICT_PARSING": False, "RELATIVE_BASE": datetime.now()},
+    )
+    if parsed is not None:
+        return parsed.date()
+
+    raise ValueError(
+        f"Pole {field_name} musi miec format YYYY-MM-DD lub byc zrozumiala data (np. 'przyszly wtorek'). Otrzymano: {value}"
+    )
 
 
 def _normalize_relative_date_keyword(value: str) -> str:
