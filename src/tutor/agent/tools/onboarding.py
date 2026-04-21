@@ -1,8 +1,8 @@
 from typing import Callable, Literal
 
+from tutor.core import Student
 from tutor.onboarding import (
     MeetingSchedule,
-    Student,
     StudentWelcomeService,
 )
 from .common import agent_tool, parse_date_value, tool_error_message

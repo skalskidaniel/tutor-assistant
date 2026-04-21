@@ -23,27 +23,12 @@ class StudentEmailProvider(Protocol):
     ) -> None: ...
 
 
-class InMemoryEmailProvider:
-    """Used only inside integration tests"""
-    def __init__(self) -> None:
-        self.sent_messages: list[tuple[str, str, str]] = []
-
-    def send_vacation_notice(
-        self,
-        *,
-        recipient_email: str,
-        subject: str,
-        body: str,
-    ) -> None:
-        self.sent_messages.append((recipient_email, subject, body))
-
-
 class GmailProvider:
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = None,
-        token_path: str | Path | None = None,
+        credentials_path: str | Path | None = "credentials.json",
+        token_path: str | Path | None = "token.json",
         sender_email: str | None = None,
     ) -> None:
         self._credentials_path = resolve_required_path(

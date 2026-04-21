@@ -1,4 +1,4 @@
-from tutor.assistant.agent.graph import (  # pyright: ignore[reportMissingImports]
+from tutor.agent.graph import (  # pyright: ignore[reportMissingImports]
     _build_system_prompt,
     _format_passthrough_tool_output,
     _is_passthrough_tool,

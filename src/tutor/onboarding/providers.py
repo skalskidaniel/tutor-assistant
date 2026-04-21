@@ -12,7 +12,9 @@ from googleapiclient.errors import HttpError
 
 from tutor.core import GOOGLE_ONBOARDING_SCOPES, load_google_credentials, resolve_required_path, format_http_error
 
-from .models import MeetingSchedule, Student
+from tutor.core import Student
+
+from .models import MeetingSchedule
 
 WEEKDAY_TO_RRULE = {0: "MO", 1: "TU", 2: "WE", 3: "TH", 4: "FR", 5: "SA", 6: "SU"}
 
@@ -29,29 +31,13 @@ class DriveProvider(Protocol):
         ...
 
 
-class InMemoryMeetProvider:
-    """Used only inside integration tests"""
-    def create_personal_meeting(
-        self, student: Student, schedule: MeetingSchedule
-    ) -> str:
-        token = f"{student.folder_slug}-{uuid4().hex[:8]}"
-        return f"https://meet.google.com/{token}"
-
-
-class InMemoryDriveProvider:
-    """Used only inside integration tests"""
-
-    def create_student_workspace(self, student: Student) -> str:
-        return f"https://drive.google.com/drive/folders/{student.folder_slug}-{uuid4().hex[:10]}"
-
-
 class GoogleMeetProvider:
 
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = None,
-        token_path: str | Path | None = None,
+        credentials_path: str | Path | None = "credentials.json",
+        token_path: str | Path | None = "token.json",
         calendar_id: str = "primary",
         timezone: str = "Europe/Warsaw",
         meeting_duration_minutes: int = 60,
@@ -187,8 +173,8 @@ class GoogleDriveProvider:
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = None,
-        token_path: str | Path | None = None,
+        credentials_path: str | Path | None = "credentials.json",
+        token_path: str | Path | None = "token.json",
         parent_folder_id: str | None = None,
     ) -> None:
         self._credentials_path = resolve_required_path(

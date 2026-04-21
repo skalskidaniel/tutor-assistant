@@ -4,11 +4,6 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from tutor.core import slugify
-
-
 @dataclass(frozen=True)
 class MeetingSchedule:
 
@@ -29,25 +24,6 @@ class MeetingSchedule:
     @property
     def weekday(self) -> int:
         return self.meeting_date.weekday()
-
-
-class Student(BaseModel):
-
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    first_name: str = Field(min_length=1)
-    last_name: str = Field(min_length=1)
-    email: str = Field(min_length=1)
-    phone: str = Field(min_length=1)
-
-    @property
-    def full_name(self) -> str:
-        return f"{self.first_name} {self.last_name}"
-
-    @property
-    def folder_slug(self) -> str:
-        return slugify(f"{self.first_name}-{self.last_name}")
-
 
 @dataclass(frozen=True)
 class WelcomePackage:

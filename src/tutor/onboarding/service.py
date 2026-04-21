@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from .models import Student, WelcomePackage, MeetingSchedule
+from tutor.core import Student
+
+from .models import WelcomePackage, MeetingSchedule
 from .providers import DriveProvider, MeetProvider
 
 

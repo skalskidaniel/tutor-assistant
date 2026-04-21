@@ -2,31 +2,33 @@ from __future__ import annotations
 
 from datetime import date
 
-from tutor.vacation import (  # pyright: ignore[reportMissingImports]
-    CalendarLessonEvent,
+from tests.mocks import (
     InMemoryEmailProvider,
     InMemoryLessonCalendarProvider,
+)
+from tutor.vacation import (
     VacationNotificationService,
     VacationRequest,
 )
+from tutor.core import CalendarLessonEvent as LessonEvent
 
 
 def test_prepare_notifications_groups_dates_and_includes_contact_data() -> None:
     provider = InMemoryLessonCalendarProvider(
         events=[
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Jan Kowalski",
                 lesson_date=date(2026, 7, 1),
                 student_email="jan@example.com",
                 student_phone="+48500100200",
             ),
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Jan Kowalski",
                 lesson_date=date(2026, 7, 8),
                 student_email="jan@example.com",
                 student_phone="+48500100200",
             ),
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Anna Nowak",
                 lesson_date=date(2026, 7, 2),
                 student_email="anna@example.com",
@@ -60,13 +62,13 @@ def test_prepare_notifications_groups_dates_and_includes_contact_data() -> None:
 def test_prepare_notifications_sends_emails_when_enabled() -> None:
     calendar_provider = InMemoryLessonCalendarProvider(
         events=[
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Jan Kowalski",
                 lesson_date=date(2026, 7, 1),
                 student_email="jan@example.com",
                 student_phone="+48500100200",
             ),
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Uczeń Bez Maila",
                 lesson_date=date(2026, 7, 1),
                 student_email=None,
@@ -105,7 +107,7 @@ def test_prepare_notifications_sends_emails_when_enabled() -> None:
 def test_prepare_notifications_requires_email_provider_when_send_enabled() -> None:
     calendar_provider = InMemoryLessonCalendarProvider(
         events=[
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Jan Kowalski",
                 lesson_date=date(2026, 7, 1),
                 student_email="jan@example.com",

@@ -6,7 +6,7 @@ import os
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-import fitz
+import pymupdf
 import pytest
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaInMemoryUpload
@@ -55,18 +55,23 @@ def test_daily_summary_integration_real_google_and_bedrock() -> None:
     )
 
     meet_provider = GoogleMeetProvider(
-        schedule=MeetingSchedule(
+        credentials_path="credentials.json",
+        token_path="token.json",
+    )
+    drive_provider = GoogleDriveProvider(
+        credentials_path="credentials.json",
+        token_path="token.json",
+        parent_folder_id=parent_folder_id,
+    )
+
+    try:
+        drive_provider.create_student_workspace(student=request)
+        meet_provider.create_personal_meeting(student=request, schedule=MeetingSchedule(
             meeting_date=start.date(),
             hour=start.hour,
             minute=start.minute,
             recurrence="none",
-        )
-    )
-    drive_provider = GoogleDriveProvider(parent_folder_id=parent_folder_id)
-
-    try:
-        drive_provider.create_student_workspace(request)
-        meet_provider.create_personal_meeting(request)
+        ))
 
         workspace_id = getattr(drive_provider, "_last_created_workspace_id", None)
         assert isinstance(workspace_id, str) and workspace_id
@@ -83,7 +88,7 @@ def test_daily_summary_integration_real_google_and_bedrock() -> None:
                 include_drive_scope=True,
             ),
             notes_provider=GoogleDriveStudentNotesProvider(
-                parent_folder_id=parent_folder_id,
+                student_notes_folder_id=parent_folder_id,
             ),
             pdf_recent_pages_provider=PyMuPdfRecentPagesProvider(recent_pages_count=3),
             insights_provider=BedrockLessonInsightsProvider(),
@@ -152,7 +157,7 @@ def _find_notes_folder_id(*, drive_service, workspace_id: str) -> str:
 
 
 def _build_test_pdf_bytes() -> bytes:
-    doc = fitz.open()
+    doc = pymupdf.open()
     page1 = doc.new_page()
     page1.insert_text((72, 72), "Rownania liniowe: 3 zadania rozwiazane")
     page2 = doc.new_page()

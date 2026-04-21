@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 import os
 from typing import Protocol
 
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from tutor.core import GOOGLE_ONBOARDING_SCOPES, load_google_credentials, format_http_error
+from tutor.core import format_http_error
 from tutor.core.utils import resolve_required_path
+from tutor.drive import build_drive_service, parse_google_timestamp
 
 from .models import DriveFile, DriveFolder
 
@@ -31,8 +30,8 @@ class GoogleDriveCleanupProvider:
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = None,
-        token_path: str | Path | None = None,
+        credentials_path: str | Path | None = "credentials.json",
+        token_path: str | Path | None = "token.json",
         student_notes_folder_id: str | None = None,
     ) -> None:
         self._credentials_path = resolve_required_path(
@@ -101,7 +100,7 @@ class GoogleDriveCleanupProvider:
                             DriveFile(
                                 id=file_id,
                                 name=name,
-                                created_time=_parse_google_timestamp(created_time_raw),
+                                created_time=parse_google_timestamp(created_time_raw),
                             )
                         )
                 page_token = response.get("nextPageToken")
@@ -180,15 +179,7 @@ class GoogleDriveCleanupProvider:
         return folders
 
     def _build_drive_service(self):
-        credentials = load_google_credentials(
+        return build_drive_service(
             credentials_path=self._credentials_path,
             token_path=self._token_path,
-            scopes=GOOGLE_ONBOARDING_SCOPES,
         )
-        return build("drive", "v3", credentials=credentials)
-
-
-def _parse_google_timestamp(value: str) -> datetime:
-    if value.endswith("Z"):
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return datetime.fromisoformat(value)

@@ -5,13 +5,7 @@ from datetime import date, datetime
 
 
 @dataclass(frozen=True)
-class HomeworkDatabaseFile:
-    id: str
-    name: str
-
-
-@dataclass(frozen=True)
-class CopiedHomeworkFile:
+class DriveFile:
     id: str
     name: str
 

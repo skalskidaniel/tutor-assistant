@@ -1,6 +1,6 @@
 from datetime import date
 
-from tutor.assistant.agent.tools.common import (
+from tutor.agent.tools.common import (
     looks_like_placeholder as _looks_like_placeholder,
     parse_date_value as _parse_date_value,
     resolve_oauth_value as _resolve_oauth_value,

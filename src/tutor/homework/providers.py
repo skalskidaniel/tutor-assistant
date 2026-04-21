@@ -7,24 +7,22 @@ from typing import Any, Protocol, cast
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pydantic import BaseModel, ConfigDict
 
 from tutor.core import (
-    GOOGLE_ONBOARDING_SCOPES,
-    load_google_credentials,
     slugify,
     resolve_required_path,
     extract_bedrock_text,
-    format_http_error
+    format_http_error,
 )
+from tutor.drive import build_drive_service
 
-from .models import CopiedHomeworkFile, HomeworkDatabaseFile
+from .models import DriveFile
 
 
 class HomeworkDriveProvider(Protocol):
-    def list_homework_database_files(self) -> list[HomeworkDatabaseFile]: ...
+    def list_homework_database_files(self) -> list[DriveFile]: ...
 
     def find_student_homework_folder(self, *, student_name: str) -> str | None: ...
 
@@ -34,7 +32,7 @@ class HomeworkDriveProvider(Protocol):
         source_file_id: str,
         source_file_name: str,
         target_homework_folder_id: str,
-    ) -> CopiedHomeworkFile: ...
+    ) -> DriveFile: ...
 
 
 class HomeworkMatcher(Protocol):
@@ -50,8 +48,8 @@ class GoogleDriveHomeworkProvider:
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = None,
-        token_path: str | Path | None = None,
+        credentials_path: str | Path | None = "credentials.json",
+        token_path: str | Path | None = "token.json",
         parent_folder_id: str | None = None,
         homework_database_folder_id: str | None = None,
     ) -> None:
@@ -80,14 +78,14 @@ class GoogleDriveHomeworkProvider:
                 "You may use --homework-db-folder-id."
             )
 
-    def list_homework_database_files(self) -> list[HomeworkDatabaseFile]:
+    def list_homework_database_files(self) -> list[DriveFile]:
         drive_service = self._build_drive_service()
         query = (
             f"'{self._homework_database_folder_id}' in parents and "
             "mimeType!='application/vnd.google-apps.folder' and trashed=false"
         )
 
-        files: list[HomeworkDatabaseFile] = []
+        files: list[DriveFile] = []
         page_token: str | None = None
         try:
             while True:
@@ -104,7 +102,7 @@ class GoogleDriveHomeworkProvider:
                     file_id = item.get("id")
                     file_name = item.get("name")
                     if isinstance(file_id, str) and isinstance(file_name, str):
-                        files.append(HomeworkDatabaseFile(id=file_id, name=file_name))
+                        files.append(DriveFile(id=file_id, name=file_name))
 
                 page_token = response.get("nextPageToken")
                 if not page_token:
@@ -137,7 +135,7 @@ class GoogleDriveHomeworkProvider:
         source_file_id: str,
         source_file_name: str,
         target_homework_folder_id: str,
-    ) -> CopiedHomeworkFile:
+    ) -> DriveFile:
         drive_service = self._build_drive_service()
         try:
             created = (
@@ -165,15 +163,13 @@ class GoogleDriveHomeworkProvider:
                 "Drive API returned faulty metadata."
             )
 
-        return CopiedHomeworkFile(id=copied_id, name=copied_name)
+        return DriveFile(id=copied_id, name=copied_name)
 
     def _build_drive_service(self):
-        credentials = load_google_credentials(
+        return build_drive_service(
             credentials_path=self._credentials_path,
             token_path=self._token_path,
-            scopes=GOOGLE_ONBOARDING_SCOPES,
         )
-        return build("drive", "v3", credentials=credentials)
 
     def _find_student_folder_id(
         self, *, drive_service, student_name: str

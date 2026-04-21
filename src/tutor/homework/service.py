@@ -14,7 +14,7 @@ from tutor.daily_summary.providers import (
     StudentNotesProvider,
 )
 
-from .models import HomeworkAssignment, HomeworkDatabaseFile, HomeworkUploadResult
+from .models import DriveFile, HomeworkAssignment, HomeworkUploadResult
 from .providers import HomeworkDriveProvider, HomeworkMatcher
 
 
@@ -100,7 +100,7 @@ class HomeworkService:
         self,
         *,
         event: CalendarLessonEvent,
-        homework_by_name: dict[str, HomeworkDatabaseFile],
+        homework_by_name: dict[str, DriveFile],
         available_names: tuple[str, ...],
     ) -> HomeworkAssignment:
         if self._progress_callback:

@@ -67,7 +67,7 @@ def create_agent_tools(
         calendar_id=resolved_defaults.calendar_id,
     )
     notes_provider = GoogleDriveStudentNotesProvider(
-        parent_folder_id=default_drive_parent_folder_id
+        student_notes_folder_id=default_drive_parent_folder_id
     )
     pdf_recent_pages_provider = PyMuPdfRecentPagesProvider(recent_pages_count=3)
     insights_provider = BedrockLessonInsightsProvider()

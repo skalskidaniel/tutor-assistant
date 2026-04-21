@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from tutor.assistant.agent import (
+from tutor.agent import (
     AgentToolDefaults,
     build_chat_session,
     resolve_agent_model_id,
@@ -32,12 +32,12 @@ from tutor.homework import (
     HomeworkService,
 )
 from tutor.core import GoogleCalendarLessonProvider
+from tutor.core import Student
 from tutor.core.memory import DEFAULT_MEMORY_NAMESPACE, MemoryService
 from tutor.onboarding import (
     GoogleDriveProvider,
     GoogleMeetProvider,
     MeetingSchedule,
-    Student,
     StudentWelcomeService,
 )
 from tutor.vacation import (
@@ -79,7 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     onboard.add_argument(
         "--drive-parent-folder-id",
-        default=None,
+        default=os.getenv("GOOGLE_DRIVE_PARENT_FOLDER_ID"),
         help="Opcjonalny folder nadrzędny na Google Drive",
     )
     onboard.add_argument(
@@ -288,7 +288,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     load_dotenv(Path(".env"), override=True)
-    _configure_langsmith_env_aliases()
     args = build_parser().parse_args()
 
     if args.command == "onboard":
@@ -582,7 +581,7 @@ def _run_chat(args: argparse.Namespace) -> None:
                     if status_running:
                         status.stop()
                         status_running = False
-                    console.print("[bold #e27d60]Agent>[/bold #e27d60] ", end="")
+                    console.print("[bold #e27d60]Agent>[/bold #e27d60]")
                     started_response = True
 
                 # Check for tool output tags and strip them
@@ -687,42 +686,22 @@ def _print_tool_event(
     status: str | None,
     summary: str | None,
 ) -> None:
-    if status == "completed":
-        style = "green"
-        marker = "[done]"
-    elif status == "error":
+    if status == "error":
         style = "red"
-        marker = "[error]"
+        label = "Błąd"
     else:
-        style = "grey50"
-        marker = "[tool]"
+        style = "grey70" if status == "pending" else "green"
+        label = "Używam"
 
     text = Text()
-    text.append(f"{marker} ", style=style)
+    text.append(f"{label} [", style=style)
     text.append(tool_name, style=style)
+    text.append("]", style=style)
+
+    if status == "error" and summary:
+        text.append(f" {summary}", style=style)
 
     console.print(text)
-
-
-def _configure_langsmith_env_aliases() -> None:
-    alias_map = {
-        "LANGCHAIN_TRACING_V2": "LANGSMITH_TRACING",
-        "LANGCHAIN_API_KEY": "LANGSMITH_API_KEY",
-        "LANGCHAIN_PROJECT": "LANGSMITH_PROJECT",
-        "LANGCHAIN_ENDPOINT": "LANGSMITH_ENDPOINT",
-    }
-
-    for langchain_var, langsmith_var in alias_map.items():
-        if os.getenv(langchain_var):
-            continue
-
-        langsmith_value = os.getenv(langsmith_var)
-        if langsmith_value:
-            os.environ[langchain_var] = langsmith_value
-
-
-def _is_truthy_env(value: str) -> bool:
-    return value.strip().casefold() in {"1", "true", "yes", "on"}
 
 
 def _format_lesson_time_range(

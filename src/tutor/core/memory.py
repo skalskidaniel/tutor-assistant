@@ -4,7 +4,6 @@ import json
 import os
 from pathlib import Path
 
-from .utils import resolve_required_path
 DEFAULT_MEMORY_FILE_NAME = ".agent_memory.json"
 DEFAULT_MEMORY_NAMESPACE = "teacher-cli"
 
@@ -12,11 +11,17 @@ DEFAULT_MEMORY_NAMESPACE = "teacher-cli"
 class MemoryService:
     """Simple JSON-backed key-value memory for chat agent sessions."""
 
-    def __init__(self, *, memory_path: Path | None = None) -> None:
-        self._memory_path = resolve_required_path(
-            explicit_path=memory_path,
-            env_var_name="TUTOR_AGENT_MEMORY_PATH"
-        ) or Path(DEFAULT_MEMORY_FILE_NAME)
+    def __init__(self, *, memory_path: str | Path | None = DEFAULT_MEMORY_FILE_NAME) -> None:
+        env_memory_path = os.getenv("TUTOR_AGENT_MEMORY_PATH")
+        if memory_path == DEFAULT_MEMORY_FILE_NAME and env_memory_path:
+            self._memory_path = Path(env_memory_path)
+            return
+
+        if memory_path is None:
+            self._memory_path = Path(env_memory_path or DEFAULT_MEMORY_FILE_NAME)
+            return
+
+        self._memory_path = Path(memory_path)
 
     @property
     def memory_path(self) -> Path:

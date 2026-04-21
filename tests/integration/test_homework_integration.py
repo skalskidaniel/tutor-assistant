@@ -6,7 +6,7 @@ import os
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-import fitz
+import pymupdf
 import pytest
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaInMemoryUpload
@@ -215,7 +215,7 @@ def _upload_pdf(*, drive_service, parent_folder_id: str, file_name: str, pdf_byt
 
 
 def _build_notes_pdf_bytes(*, topic_token: str) -> bytes:
-    doc = fitz.open()
+    doc = pymupdf.open()
     page = doc.new_page()
     page.insert_text(
         (72, 72),
@@ -230,7 +230,7 @@ def _build_notes_pdf_bytes(*, topic_token: str) -> bytes:
 
 
 def _build_homework_pdf_bytes(*, topic_token: str) -> bytes:
-    doc = fitz.open()
+    doc = pymupdf.open()
     page = doc.new_page()
     page.insert_text((72, 72), f"Praca domowa testowa: zadanie-{topic_token}.pdf")
     pdf_bytes = doc.tobytes()

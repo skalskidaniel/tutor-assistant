@@ -24,8 +24,6 @@ from .homework import (
 from .onboarding import (
     GoogleDriveProvider,
     GoogleMeetProvider,
-    InMemoryDriveProvider,
-    InMemoryMeetProvider,
     MeetingSchedule,
     Student,
     StudentWelcomeService,
@@ -57,8 +55,6 @@ __all__ = [
     "HomeworkUploadResult",
     "GoogleDriveProvider",
     "GoogleMeetProvider",
-    "InMemoryDriveProvider",
-    "InMemoryMeetProvider",
     "MeetingSchedule",
     "Student",
     "StudentWelcomeService",

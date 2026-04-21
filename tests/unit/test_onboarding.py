@@ -1,8 +1,8 @@
 from tutor import Student  # pyright: ignore[reportMissingImports]
 from tutor import StudentWelcomeService  # pyright: ignore[reportMissingImports]
 from tutor import WelcomePackage  # pyright: ignore[reportMissingImports]
+from tests.mocks import InMemoryMeetProvider
 from tutor.onboarding import (  # pyright: ignore[reportMissingImports]
-    InMemoryMeetProvider,
     MeetingSchedule,
     slugify,
 )

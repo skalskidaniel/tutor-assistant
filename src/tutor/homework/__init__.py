@@ -1,9 +1,8 @@
 """Homework management package"""
 
 from .models import (
-    CopiedHomeworkFile,
+    DriveFile,
     HomeworkAssignment,
-    HomeworkDatabaseFile,
     HomeworkUploadResult,
 )
 from .providers import (
@@ -16,10 +15,9 @@ from .service import HomeworkService
 
 __all__ = [
     "BedrockHomeworkMatcher",
-    "CopiedHomeworkFile",
+    "DriveFile",
     "GoogleDriveHomeworkProvider",
     "HomeworkAssignment",
-    "HomeworkDatabaseFile",
     "HomeworkDriveProvider",
     "HomeworkMatcher",
     "HomeworkService",

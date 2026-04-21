@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-import fitz
+import pymupdf
 
-from tutor.core.calendar import (  # pyright: ignore[reportMissingImports]
-    CalendarLessonEvent,
-    InMemoryLessonCalendarProvider,
-)
+from tutor.core import CalendarLessonEvent as LessonEvent
+from tests.mocks import InMemoryLessonCalendarProvider
 from tutor.daily_summary.models import (  # pyright: ignore[reportMissingImports]
     ExtractedRecentPages,
     LatestNotesPdf,
@@ -51,13 +49,13 @@ class FakeInsightsProvider:
 def test_daily_summary_service_uses_recent_pages_and_handles_missing_pdf() -> None:
     target_date = date(2026, 4, 17)
     calendar_provider = InMemoryLessonCalendarProvider(
-        events=[
-            CalendarLessonEvent(
+            events=[
+                LessonEvent(
                 student_name="Jan Kowalski",
                 lesson_date=target_date,
                 start_time=datetime(2026, 4, 17, 15, 0, tzinfo=timezone.utc),
             ),
-            CalendarLessonEvent(
+                LessonEvent(
                 student_name="Anna Nowak",
                 lesson_date=target_date,
                 start_time=datetime(2026, 4, 17, 13, 0, tzinfo=timezone.utc),
@@ -99,7 +97,7 @@ def test_daily_summary_service_uses_recent_pages_and_handles_missing_pdf() -> No
 
 
 def test_pymupdf_recent_pages_provider_returns_last_three_page_images() -> None:
-    document = fitz.open()
+    document = pymupdf.open()
     for index in range(5):
         page = document.new_page()
         page.insert_text((72, 72), f"Strona {index + 1}")

@@ -1,6 +1,6 @@
 from argparse import Namespace
 
-from tutor.assistant.cli import (  # pyright: ignore[reportMissingImports]
+from tutor.agent.cli import (  # pyright: ignore[reportMissingImports]
     _run_memory_delete,
     _run_memory_list,
     _run_memory_set,

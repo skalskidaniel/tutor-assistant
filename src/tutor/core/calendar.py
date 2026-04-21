@@ -38,29 +38,12 @@ class LessonCalendarProvider(Protocol):
     ) -> list[CalendarLessonEvent]: ...
 
 
-class InMemoryLessonCalendarProvider:
-    def __init__(self, events: list[CalendarLessonEvent] | None = None) -> None:
-        self._events = events or []
-
-    def list_lessons_in_range(
-        self,
-        *,
-        start_date: date,
-        end_date: date,
-    ) -> list[CalendarLessonEvent]:
-        return [
-            event
-            for event in self._events
-            if start_date <= event.lesson_date <= end_date
-        ]
-
-
 class GoogleCalendarLessonProvider:
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = None,
-        token_path: str | Path | None = None,
+        credentials_path: str | Path | None = "credentials.json",
+        token_path: str | Path | None = "token.json",
         calendar_id: str = "primary",
         include_drive_scope: bool = False,
     ) -> None:

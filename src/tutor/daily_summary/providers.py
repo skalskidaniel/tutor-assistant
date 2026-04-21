@@ -8,20 +8,18 @@ import os
 from typing import Any, Protocol, cast
 
 import boto3
-import fitz
+import pymupdf
 from botocore.exceptions import BotoCoreError, ClientError
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pydantic import BaseModel, ConfigDict, Field
 
 from tutor.core import (
-    GOOGLE_ONBOARDING_SCOPES,
-    load_google_credentials,
     slugify,
     extract_bedrock_text,
     format_http_error,
-    resolve_required_path
+    resolve_required_path,
 )
+from tutor.drive import build_drive_service, parse_google_timestamp
 
 from .models import ExtractedRecentPages, LatestNotesPdf, LessonInsights
 
@@ -46,8 +44,8 @@ class GoogleDriveStudentNotesProvider:
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = None,
-        token_path: str | Path | None = None,
+        credentials_path: str | Path | None = "credentials.json",
+        token_path: str | Path | None = "token.json",
         student_notes_folder_id: str | None = None,
     ) -> None:
         self._credentials_path = resolve_required_path(
@@ -112,12 +110,10 @@ class GoogleDriveStudentNotesProvider:
         )
 
     def _build_drive_service(self):
-        credentials = load_google_credentials(
+        return build_drive_service(
             credentials_path=self._credentials_path,
             token_path=self._token_path,
-            scopes=GOOGLE_ONBOARDING_SCOPES,
         )
-        return build("drive", "v3", credentials=credentials)
 
     def _find_student_folder(self, *, drive_service, student_name: str) -> str | None:
         expected_slug = slugify(student_name)
@@ -234,7 +230,7 @@ class GoogleDriveStudentNotesProvider:
         ):
             raise RuntimeError("Drive API returned incomplete PDF file metadata.")
 
-        modified_time = _parse_google_timestamp(modified_time_raw)
+        modified_time = parse_google_timestamp(modified_time_raw)
         return file_id, file_name, modified_time
 
 
@@ -257,7 +253,7 @@ class PyMuPdfRecentPagesProvider:
             raise ValueError("PDF is empty.")
 
         try:
-            document = fitz.open(stream=pdf_bytes, filetype="pdf")
+            document = pymupdf.open(stream=pdf_bytes, filetype="pdf")
         except Exception as exc:  # noqa: BLE001
             raise RuntimeError(f"Error reading PDF: {exc}") from exc
 
@@ -296,8 +292,10 @@ class PyMuPdfRecentPagesProvider:
         for index in page_indices:
             page = document.load_page(index)
             adjusted_scale = _scale_for_dimension_limit(page=page, base_scale=scale)
-            matrix = fitz.Matrix(adjusted_scale, adjusted_scale)
-            pixmap = page.get_pixmap(matrix=matrix, colorspace=fitz.csGRAY, alpha=False)
+            matrix = pymupdf.Matrix(adjusted_scale, adjusted_scale)
+            pixmap = page.get_pixmap(
+                matrix=matrix, colorspace=pymupdf.csGRAY, alpha=False
+            )
             images.append(pixmap.tobytes("png"))
         return images
 
@@ -443,12 +441,6 @@ def _strip_markdown_fence(text: str) -> str:
     if len(parts) >= 3 and parts[0].startswith("```") and parts[-1].startswith("```"):
         return "\n".join(parts[1:-1]).strip()
     return text
-
-
-def _parse_google_timestamp(value: str) -> datetime:
-    if value.endswith("Z"):
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return datetime.fromisoformat(value)
 
 
 def _scale_for_dimension_limit(*, page, base_scale: float) -> float:
