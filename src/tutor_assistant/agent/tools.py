@@ -305,8 +305,8 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
 
             for index, notice in enumerate(result.notices, start=1):
                 lines.append(
-                    f"[{index}] Uczen: {notice.student_name}; "
-                    f"Email: {notice.student_email or 'brak'}; "
+                    f"[{index}] Uczen: {notice.student_name}\n"
+                    f"Email: {notice.student_email or 'brak'}\n"
                     f"Telefon: {notice.student_phone or 'brak'}"
                 )
                 if send_emails:
@@ -384,11 +384,11 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
                     end=lesson.lesson_end_time,
                 )
                 lines.append(
-                    f"[{index}] Godzina: {lesson_time}; "
-                    f"Uczen: {lesson.student_name}; "
+                    f"[{index}] Godzina: {lesson_time}\n"
+                    f"Uczen: {lesson.student_name}\n"
                     f"Notatki PDF: {lesson.source_pdf_name or 'brak'}"
                 )
-                lines.append(f"Podsumowanie: {lesson.recent_notes_summary}")
+                lines.append(f"Podsumowanie:\n{lesson.recent_notes_summary}")
 
             return "\n".join(lines)
         except Exception as exc:  # noqa: BLE001
@@ -476,8 +476,8 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
                     end=assignment.lesson_end_time,
                 )
                 lines.append(
-                    f"[{index}] Godzina: {lesson_time}; "
-                    f"Uczen: {assignment.student_name}; "
+                    f"[{index}] Godzina: {lesson_time}\n"
+                    f"Uczen: {assignment.student_name}\n"
                     f"Status: {assignment.status}"
                 )
                 lines.append(f"Szczegoly: {assignment.status_details}")

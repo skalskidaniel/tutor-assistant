@@ -208,6 +208,12 @@ def build_chat_session(
     return AgentChatSession(app=app, thread_id=thread_id)
 
 
+def resolve_agent_model_id() -> str:
+    """Expose the model id used by the chat agent runtime."""
+
+    return _resolve_agent_model_id()
+
+
 def _resolve_agent_model_id() -> str:
     return os.getenv(
         "BEDROCK_AGENT_MODEL_ID",

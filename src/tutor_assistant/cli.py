@@ -9,10 +9,17 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from rich.console import Console
+from rich.panel import Panel
+from rich.rule import Rule
 from rich.prompt import Prompt
+from rich.table import Table
 from rich.text import Text
 
-from tutor_assistant.agent import AgentToolDefaults, build_chat_session
+from tutor_assistant.agent import (
+    AgentToolDefaults,
+    build_chat_session,
+    resolve_agent_model_id,
+)
 from tutor_assistant.daily_summary import (
     BedrockLessonInsightsProvider,
     DailySummaryService,
@@ -478,13 +485,13 @@ def _run_chat(args: argparse.Namespace) -> None:
     session = build_chat_session(defaults=defaults, thread_id=args.thread_id)
     show_tools = not args.hide_tools
     show_reasoning = args.show_reasoning
+    model_id = resolve_agent_model_id()
 
-    console.print("Tryb chat uruchomiony. Wpisz 'exit' lub 'quit', aby zakonczyc.\n")
+    _print_chat_header(console, model_id)
 
     while True:
         try:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            user_input = Prompt.ask(f"[dim]\\[{timestamp}][/dim] [bold cyan]Ty[/bold cyan]").strip()
+            user_input = console.input("[bold white]>[/bold white] ").strip()
         except EOFError:
             console.print("\nKoniec danych wejsciowych. Zamykam sesje.")
             return
@@ -526,16 +533,19 @@ def _run_chat(args: argparse.Namespace) -> None:
                     if status_running:
                         status.stop()
                         status_running = False
-                    timestamp = datetime.now().strftime("%H:%M:%S")
-                    console.print(f"[dim]\\[{timestamp}][/dim] [bold magenta]Agent>[/bold magenta] ", end="")
+                    console.print("[bold #e27d60]Agent>[/bold #e27d60] ", end="")
                     started_response = True
-                event_style = "bright_blue" if event.kind == "tool_output" else None
+                
+                # Check for tool output tags and strip them
+                output_text = event.text
+                if event.kind == "tool_output":
+                    output_text = output_text.replace("<tool_output>\n", "").replace("\n</tool_output>\n", "").replace("<tool_output>", "").replace("</tool_output>", "")
+                    
                 console.print(
-                    event.text,
+                    output_text,
                     end="",
                     highlight=False,
                     markup=False,
-                    style=event_style,
                 )
         except Exception as exc:  # noqa: BLE001
             if status_running:
@@ -555,8 +565,32 @@ def _run_chat(args: argparse.Namespace) -> None:
 
         if show_reasoning:
             console.print("[dim]Agent zakonczyl zadanie bez tresci odpowiedzi.[/dim]")
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        console.print(f"[dim]\\[{timestamp}][/dim] [bold magenta]Agent>[/bold magenta] Gotowe.\n")
+        console.print("[bold #e27d60]Agent>[/bold #e27d60] Gotowe.\n")
+
+
+def _print_chat_header(console: Console, model_id: str) -> None:
+    icon = Text.assemble(
+        ("   ▄▄██▄▄   \n", "bold #5bc0de"),
+        (" ▄█ ▀  ▀ █▄ \n", "bold #5bc0de"),
+        ("  ▀▀▄▄▄▄▀▀  ", "bold #5bc0de"),
+    )
+
+    meta = Text()
+    meta.append("Tutor assistant\n", style="bold white")
+    meta.append(f"Model: {model_id}", style="grey70")
+
+    grid = Table.grid(padding=(0, 2))
+    grid.add_column(no_wrap=True)
+    grid.add_column()
+    grid.add_row(icon, meta)
+
+    header = Panel(
+        grid,
+        border_style="grey23",
+        padding=(1, 2),
+        expand=False,
+    )
+    console.print(header)
 
 
 def _print_tool_event(
@@ -567,17 +601,23 @@ def _print_tool_event(
 ) -> None:
     if status == "completed":
         style = "green"
+        marker = "[done]"
     elif status == "error":
         style = "red"
+        marker = "[error]"
     else:
-
         style = "grey50"
+        marker = "[tool]"
 
     text = Text()
+    text.append(f"{marker} ", style=style)
     text.append(tool_name, style=style)
+    # Odkomentuj ponizsze linie jesli kiedys bedziesz chcial dodac summary do logow narzedzi
+    # if summary:
+    #     text.append(f" - {summary}", style="grey66")
 
     console.print(text)
-    console.print()
+    # Zostawiamy print bez nowej linii na koncu, aby wywietlanie narzedzi bylo bardziej zwarte
 
 
 def _configure_langsmith_env_aliases() -> None:
