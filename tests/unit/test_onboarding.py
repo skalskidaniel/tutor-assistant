@@ -3,6 +3,7 @@ from tutor_assistant import StudentWelcomeService  # pyright: ignore[reportMissi
 from tutor_assistant import WelcomePackage  # pyright: ignore[reportMissingImports]
 from tutor_assistant.onboarding import (  # pyright: ignore[reportMissingImports]
     InMemoryMeetProvider,
+    MeetingSchedule,
     slugify,
 )
 
@@ -28,8 +29,15 @@ def test_onboard_student_returns_welcome_package() -> None:
         email="jan.kowalski@example.com",
         phone="+48500100200",
     )
+    from datetime import date
+    schedule = MeetingSchedule(
+        meeting_date=date(2026, 4, 18),
+        hour=18,
+        minute=0,
+        recurrence="weekly",
+    )
 
-    result = service.onboard_student(request)
+    result = service.onboard_student(request, schedule)
 
     assert isinstance(result, WelcomePackage)
     assert result.meet_link.startswith("https://meet.google.com/jan-kowalski-")

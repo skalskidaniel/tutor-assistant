@@ -18,6 +18,7 @@ from .tools import AgentToolDefaults, create_agent_tools
 try:
     from langsmith import traceable
 except Exception:  # noqa: BLE001
+
     def traceable(*_args: Any, **_kwargs: Any):
         def _decorator(func: Any) -> Any:
             return func
@@ -205,10 +206,7 @@ def resolve_agent_model_id() -> str:
 
 
 def _resolve_agent_model_id() -> str:
-    return os.getenv(
-        "BEDROCK_AGENT_MODEL_ID",
-        os.getenv("BEDROCK_MODEL_ID", DEFAULT_AGENT_MODEL_ID),
-    )
+    return os.getenv("BEDROCK_AGENT_MODEL_ID", DEFAULT_AGENT_MODEL_ID)
 
 
 def _resolve_region_name() -> str:
@@ -250,7 +248,10 @@ def _extract_tool_statuses(
         content = _extract_text_from_tool_result_content(tool_result.get("content"))
         status_raw = tool_result.get("status")
         status: Literal["completed", "error"]
-        if status_raw == "error" or "Wystapil blad podczas wykonania narzedzia" in content:
+        if (
+            status_raw == "error"
+            or "Wystapil blad podczas wykonania narzedzia" in content
+        ):
             status = "error"
         else:
             status = "completed"

@@ -20,7 +20,9 @@ WEEKDAY_TO_RRULE = {0: "MO", 1: "TU", 2: "WE", 3: "TH", 4: "FR", 5: "SA", 6: "SU
 
 
 class MeetProvider(Protocol):
-    def create_personal_meeting(self, student: NewStudentRequest) -> str:
+    def create_personal_meeting(
+        self, student: NewStudentRequest, schedule: MeetingSchedule
+    ) -> str:
         """Tworzy spersonalizowany link Google Meet dla ucznia."""
         ...
 
@@ -34,7 +36,9 @@ class DriveProvider(Protocol):
 class InMemoryMeetProvider:
     """Prosta implementacja testowa - bez polaczenia z Google API."""
 
-    def create_personal_meeting(self, student: NewStudentRequest) -> str:
+    def create_personal_meeting(
+        self, student: NewStudentRequest, schedule: MeetingSchedule
+    ) -> str:
         token = f"{student.folder_slug}-{uuid4().hex[:8]}"
         return f"https://meet.google.com/{token}"
 
@@ -57,7 +61,6 @@ class GoogleMeetProvider:
         calendar_id: str = "primary",
         timezone: str = "Europe/Warsaw",
         meeting_duration_minutes: int = 60,
-        schedule: MeetingSchedule | None = None,
     ) -> None:
         self._credentials_path = Path(
             credentials_path or os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
@@ -68,16 +71,11 @@ class GoogleMeetProvider:
         self._calendar_id = calendar_id
         self._timezone = timezone
         self._meeting_duration_minutes = meeting_duration_minutes
-        tomorrow = datetime.now(ZoneInfo(timezone)).date() + timedelta(days=1)
-        self._schedule = schedule or MeetingSchedule(
-            meeting_date=tomorrow,
-            hour=18,
-            minute=0,
-            recurrence="weekly",
-        )
         self._last_created_event_id: str | None = None
 
-    def create_personal_meeting(self, student: NewStudentRequest) -> str:
+    def create_personal_meeting(
+        self, student: NewStudentRequest, schedule: MeetingSchedule
+    ) -> str:
         credentials = load_google_credentials(
             credentials_path=self._credentials_path,
             token_path=self._token_path,
@@ -85,7 +83,7 @@ class GoogleMeetProvider:
         )
         calendar_service = build("calendar", "v3", credentials=credentials)
 
-        start_at = self._next_meeting_datetime()
+        start_at = self._next_meeting_datetime(schedule)
         end_at = start_at + timedelta(minutes=self._meeting_duration_minutes)
         event_payload: dict[str, object] = {
             "summary": f"{student.full_name}",
@@ -103,7 +101,7 @@ class GoogleMeetProvider:
                 }
             },
         }
-        recurrence = self._build_recurrence()
+        recurrence = self._build_recurrence(schedule)
         if recurrence:
             event_payload["recurrence"] = recurrence
 
@@ -159,31 +157,31 @@ class GoogleMeetProvider:
         finally:
             self._last_created_event_id = None
 
-    def _next_meeting_datetime(self) -> datetime:
-        meeting_date = self._schedule.meeting_date
+    def _next_meeting_datetime(self, schedule: MeetingSchedule) -> datetime:
+        meeting_date = schedule.meeting_date
         return datetime(
             year=meeting_date.year,
             month=meeting_date.month,
             day=meeting_date.day,
-            hour=self._schedule.hour,
-            minute=self._schedule.minute,
+            hour=schedule.hour,
+            minute=schedule.minute,
             second=0,
             microsecond=0,
             tzinfo=ZoneInfo(self._timezone),
         )
 
-    def _build_recurrence(self) -> list[str]:
-        if self._schedule.recurrence == "none":
+    def _build_recurrence(self, schedule: MeetingSchedule) -> list[str]:
+        if schedule.recurrence == "none":
             return []
 
         rule = "RRULE:FREQ=WEEKLY"
-        if self._schedule.recurrence == "biweekly":
+        if schedule.recurrence == "biweekly":
             rule = f"{rule};INTERVAL=2"
 
-        byday = WEEKDAY_TO_RRULE[self._schedule.weekday]
+        byday = WEEKDAY_TO_RRULE[schedule.weekday]
         rule = f"{rule};BYDAY={byday}"
-        if self._schedule.occurrences is not None:
-            rule = f"{rule};COUNT={self._schedule.occurrences}"
+        if schedule.occurrences is not None:
+            rule = f"{rule};COUNT={schedule.occurrences}"
 
         return [rule]
 

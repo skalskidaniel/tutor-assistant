@@ -10,8 +10,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
-from rich.rule import Rule
-from rich.prompt import Prompt
 from rich.table import Table
 from rich.text import Text
 
@@ -474,6 +472,8 @@ def _run_upload_homework(args: argparse.Namespace) -> None:
 
 def _run_chat(args: argparse.Namespace) -> None:
     console = Console()
+    status = console.status("[bold green]Agent mysli...[/bold green]", spinner="dots")
+
     defaults = AgentToolDefaults(
         calendar_id=args.calendar_id,
         timezone=args.timezone,
@@ -481,6 +481,7 @@ def _run_chat(args: argparse.Namespace) -> None:
         drive_parent_folder_id=args.drive_parent_folder_id,
         homework_db_folder_id=args.homework_db_folder_id,
         max_concurrency=args.max_concurrency,
+        progress_callback=status.update,
     )
     session = build_chat_session(defaults=defaults, thread_id=args.thread_id)
     show_tools = not args.hide_tools
@@ -506,7 +507,7 @@ def _run_chat(args: argparse.Namespace) -> None:
             console.print("Do uslyszenia!")
             return
 
-        status = console.status("[bold green]Agent mysli...[/bold green]", spinner="dots")
+        status.update("[bold green]Agent mysli...[/bold green]")
         status.start()
         status_running = True
         started_response = False
@@ -526,7 +527,9 @@ def _run_chat(args: argparse.Namespace) -> None:
                             if started_response:
                                 console.print()
                                 started_response = False
-                            _print_tool_event(console, event.text, event.status, event.summary)
+                            _print_tool_event(
+                                console, event.text, event.status, event.summary
+                            )
                     continue
 
                 if not started_response:
@@ -535,12 +538,17 @@ def _run_chat(args: argparse.Namespace) -> None:
                         status_running = False
                     console.print("[bold #e27d60]Agent>[/bold #e27d60] ", end="")
                     started_response = True
-                
+
                 # Check for tool output tags and strip them
                 output_text = event.text
                 if event.kind == "tool_output":
-                    output_text = output_text.replace("<tool_output>\n", "").replace("\n</tool_output>\n", "").replace("<tool_output>", "").replace("</tool_output>", "")
-                    
+                    output_text = (
+                        output_text.replace("<tool_output>\n", "")
+                        .replace("\n</tool_output>\n", "")
+                        .replace("<tool_output>", "")
+                        .replace("</tool_output>", "")
+                    )
+
                 console.print(
                     output_text,
                     end="",

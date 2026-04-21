@@ -18,6 +18,9 @@ from .models import HomeworkAssignment, HomeworkDatabaseFile, HomeworkUploadResu
 from .providers import HomeworkDriveProvider, HomeworkMatcher
 
 
+from typing import Callable
+
+
 class HomeworkService:
     def __init__(
         self,
@@ -29,6 +32,7 @@ class HomeworkService:
         homework_drive_provider: HomeworkDriveProvider,
         homework_matcher: HomeworkMatcher,
         max_concurrency: int = 4,
+        progress_callback: Callable[[str], None] | None = None,
     ) -> None:
         if max_concurrency < 1:
             raise ValueError("max_concurrency musi byc wieksze od zera.")
@@ -40,12 +44,15 @@ class HomeworkService:
         self._homework_drive_provider = homework_drive_provider
         self._homework_matcher = homework_matcher
         self._max_concurrency = max_concurrency
+        self._progress_callback = progress_callback
 
     def upload_homework_for_day(self, *, target_date: date) -> HomeworkUploadResult:
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            return asyncio.run(self.upload_homework_for_day_async(target_date=target_date))
+            return asyncio.run(
+                self.upload_homework_for_day_async(target_date=target_date)
+            )
 
         raise RuntimeError(
             "upload_homework_for_day nie moze byc wywolane wewnatrz aktywnej petli "
@@ -96,6 +103,11 @@ class HomeworkService:
         homework_by_name: dict[str, HomeworkDatabaseFile],
         available_names: tuple[str, ...],
     ) -> HomeworkAssignment:
+        if self._progress_callback:
+            self._progress_callback(
+                f"[bold cyan]Szukam notatek...[/bold cyan] ({event.student_name})"
+            )
+
         latest_pdf = await asyncio.to_thread(
             self._notes_provider.get_latest_notes_pdf,
             student_name=event.student_name,
@@ -106,6 +118,11 @@ class HomeworkService:
         if not available_names:
             return _build_assignment_empty_database(event=event, latest_pdf=latest_pdf)
 
+        if self._progress_callback:
+            self._progress_callback(
+                f"[bold yellow]Analizowanie w Bedrock...[/bold yellow] ({event.student_name})"
+            )
+
         extracted_pages = await asyncio.to_thread(
             self._pdf_recent_pages_provider.extract_recent_pages,
             pdf_bytes=latest_pdf.pdf_bytes,
@@ -115,6 +132,11 @@ class HomeworkService:
             extracted_pages=extracted_pages,
         )
         notes_summary = insights.recent_notes_summary
+
+        if self._progress_callback:
+            self._progress_callback(
+                f"[bold blue]Dopasowywanie zadan...[/bold blue] ({event.student_name})"
+            )
 
         try:
             selected_name = await asyncio.to_thread(
@@ -158,6 +180,11 @@ class HomeworkService:
                 selected_file_name=selected_file.name,
             )
 
+        if self._progress_callback:
+            self._progress_callback(
+                f"[bold green]Kopiowanie na Drive...[/bold green] ({event.student_name})"
+            )
+
         try:
             copied = await asyncio.to_thread(
                 self._homework_drive_provider.copy_homework_to_student,
@@ -174,6 +201,11 @@ class HomeworkService:
                 error=error,
             )
 
+        if self._progress_callback:
+            self._progress_callback(
+                f"[bold green]Zakonczono:[/bold green] {event.student_name}"
+            )
+
         return HomeworkAssignment(
             student_name=event.student_name,
             lesson_date=event.lesson_date,
@@ -188,7 +220,9 @@ class HomeworkService:
         )
 
 
-def _build_assignment_without_notes(*, event: CalendarLessonEvent) -> HomeworkAssignment:
+def _build_assignment_without_notes(
+    *, event: CalendarLessonEvent
+) -> HomeworkAssignment:
     return HomeworkAssignment(
         student_name=event.student_name,
         lesson_date=event.lesson_date,
@@ -260,8 +294,7 @@ def _build_assignment_no_match(
         uploaded_homework_name=None,
         status="no_match",
         status_details=(
-            "Nie znaleziono pasujacego zadania domowego "
-            "w bazie na podstawie notatek."
+            "Nie znaleziono pasujacego zadania domowego w bazie na podstawie notatek."
         ),
     )
 

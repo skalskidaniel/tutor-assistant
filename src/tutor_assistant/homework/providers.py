@@ -13,7 +13,11 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from pydantic import BaseModel, ConfigDict
 
-from tutor_assistant.core import GOOGLE_ONBOARDING_SCOPES, load_google_credentials, slugify
+from tutor_assistant.core import (
+    GOOGLE_ONBOARDING_SCOPES,
+    load_google_credentials,
+    slugify,
+)
 
 from .models import CopiedHomeworkFile, HomeworkDatabaseFile
 
@@ -154,7 +158,9 @@ class GoogleDriveHomeworkProvider:
         copied_id = created.get("id")
         copied_name = created.get("name")
         if not isinstance(copied_id, str) or not isinstance(copied_name, str):
-            raise RuntimeError("Drive API zwrocilo niepelne metadane skopiowanego pliku.")
+            raise RuntimeError(
+                "Drive API zwrocilo niepelne metadane skopiowanego pliku."
+            )
 
         return CopiedHomeworkFile(id=copied_id, name=copied_name)
 
@@ -166,7 +172,9 @@ class GoogleDriveHomeworkProvider:
         )
         return build("drive", "v3", credentials=credentials)
 
-    def _find_student_folder_id(self, *, drive_service, student_name: str) -> str | None:
+    def _find_student_folder_id(
+        self, *, drive_service, student_name: str
+    ) -> str | None:
         expected_slug = slugify(student_name)
         query = (
             f"'{self._parent_folder_id}' in parents and "
@@ -200,7 +208,9 @@ class GoogleDriveHomeworkProvider:
 
         return None
 
-    def _find_homework_folder_id(self, *, drive_service, student_folder_id: str) -> str | None:
+    def _find_homework_folder_id(
+        self, *, drive_service, student_folder_id: str
+    ) -> str | None:
         queue = [student_folder_id]
         visited: set[str] = set()
 
@@ -257,8 +267,8 @@ class BedrockHomeworkMatcher:
         region_name: str | None = None,
     ) -> None:
         self._model_id = model_id or os.getenv(
-            "BEDROCK_TASK_MODEL_ID",
-            os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
+            "BEDROCK_HOMEWORK_MATCHER_MODEL_ID",
+            "anthropic.claude-3-haiku-20240307-v1:0",
         )
         self._region_name = (
             region_name

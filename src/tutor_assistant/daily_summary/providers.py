@@ -271,7 +271,10 @@ class PyMuPdfRecentPagesProvider:
                     scale=scale,
                 )
                 recent_images = candidate
-                if sum(len(image) for image in candidate) <= self._max_total_image_bytes:
+                if (
+                    sum(len(image) for image in candidate)
+                    <= self._max_total_image_bytes
+                ):
                     break
 
         return ExtractedRecentPages(
@@ -310,8 +313,8 @@ class BedrockLessonInsightsProvider:
         region_name: str | None = None,
     ) -> None:
         self._model_id = model_id or os.getenv(
-            "BEDROCK_TASK_MODEL_ID",
-            os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
+            "BEDROCK_INSIGHTS_MODEL_ID",
+            "anthropic.claude-3-haiku-20240307-v1:0",
         )
         self._region_name = (
             region_name
@@ -372,7 +375,9 @@ class BedrockLessonInsightsProvider:
                     continue
                 raise RuntimeError(f"Nie udalo sie wywolac AWS Bedrock: {exc}") from exc
         else:
-            raise RuntimeError("Nie udalo sie przygotowac poprawnego wejscia dla Bedrock.")
+            raise RuntimeError(
+                "Nie udalo sie przygotowac poprawnego wejscia dla Bedrock."
+            )
 
         raw_body = response.get("body")
         if raw_body is None:

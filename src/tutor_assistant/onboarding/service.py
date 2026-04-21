@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .models import NewStudentRequest, WelcomePackage
+from .models import NewStudentRequest, WelcomePackage, MeetingSchedule
 from .providers import DriveProvider, MeetProvider
 
 
@@ -15,8 +15,10 @@ class StudentWelcomeService:
         self._meet_provider = meet_provider
         self._drive_provider = drive_provider
 
-    def onboard_student(self, request: NewStudentRequest) -> WelcomePackage:
-        meet_link = self._meet_provider.create_personal_meeting(request)
+    def onboard_student(
+        self, request: NewStudentRequest, schedule: MeetingSchedule
+    ) -> WelcomePackage:
+        meet_link = self._meet_provider.create_personal_meeting(request, schedule)
         drive_folder_url = self._drive_provider.create_student_workspace(request)
         message_for_student = self._build_student_message(
             student=request,

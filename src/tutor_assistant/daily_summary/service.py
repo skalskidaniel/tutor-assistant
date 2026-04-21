@@ -15,6 +15,9 @@ from .providers import (
 )
 
 
+from typing import Callable
+
+
 class DailySummaryService:
     def __init__(
         self,
@@ -24,6 +27,7 @@ class DailySummaryService:
         pdf_recent_pages_provider: PdfRecentPagesProvider,
         insights_provider: LessonInsightsProvider,
         max_concurrency: int = 4,
+        progress_callback: Callable[[str], None] | None = None,
     ) -> None:
         if max_concurrency < 1:
             raise ValueError("max_concurrency musi byc wieksze od zera.")
@@ -33,19 +37,24 @@ class DailySummaryService:
         self._pdf_recent_pages_provider = pdf_recent_pages_provider
         self._insights_provider = insights_provider
         self._max_concurrency = max_concurrency
+        self._progress_callback = progress_callback
 
     def build_summary_for_day(self, *, target_date: date) -> DailySummaryResult:
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            return asyncio.run(self.build_summary_for_day_async(target_date=target_date))
+            return asyncio.run(
+                self.build_summary_for_day_async(target_date=target_date)
+            )
 
         raise RuntimeError(
             "build_summary_for_day nie moze byc wywolane wewnatrz aktywnej petli "
             "asyncio. Uzyj await build_summary_for_day_async(...)."
         )
 
-    async def build_summary_for_day_async(self, *, target_date: date) -> DailySummaryResult:
+    async def build_summary_for_day_async(
+        self, *, target_date: date
+    ) -> DailySummaryResult:
         events = await asyncio.to_thread(
             self._calendar_provider.list_lessons_in_range,
             start_date=target_date,
@@ -68,7 +77,14 @@ class DailySummaryService:
             scanned_events=len(events),
         )
 
-    async def _build_lesson_summary(self, *, event: CalendarLessonEvent) -> DailyLessonSummary:
+    async def _build_lesson_summary(
+        self, *, event: CalendarLessonEvent
+    ) -> DailyLessonSummary:
+        if self._progress_callback:
+            self._progress_callback(
+                f"[bold cyan]Szukam notatek dla ucznia:[/bold cyan] {event.student_name}..."
+            )
+
         latest_pdf = await asyncio.to_thread(
             self._notes_provider.get_latest_notes_pdf,
             student_name=event.student_name,
@@ -84,6 +100,11 @@ class DailySummaryService:
                 recent_notes_summary="Brak notatek PDF w folderze notatki.",
             )
 
+        if self._progress_callback:
+            self._progress_callback(
+                f"[bold yellow]Analizowanie notatek w Bedrock (AI)...[/bold yellow] ({event.student_name})"
+            )
+
         extracted_pages = await asyncio.to_thread(
             self._pdf_recent_pages_provider.extract_recent_pages,
             pdf_bytes=latest_pdf.pdf_bytes,
@@ -92,6 +113,11 @@ class DailySummaryService:
             self._insights_provider.analyze_lesson_notes,
             extracted_pages=extracted_pages,
         )
+
+        if self._progress_callback:
+            self._progress_callback(
+                f"[bold green]Zakonczono analize notatek:[/bold green] {event.student_name}"
+            )
 
         return DailyLessonSummary(
             student_name=event.student_name,

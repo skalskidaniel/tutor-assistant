@@ -1,10 +1,10 @@
 from datetime import date
 
-from tutor_assistant.agent.tools import (  # pyright: ignore[reportPrivateUsage]
-    _looks_like_placeholder,
-    _parse_date_value,
-    _resolve_oauth_value,
-    _resolve_runtime_value,
+from tutor_assistant.agent.tools.common import (
+    looks_like_placeholder as _looks_like_placeholder,
+    parse_date_value as _parse_date_value,
+    resolve_oauth_value as _resolve_oauth_value,
+    resolve_runtime_value as _resolve_runtime_value,
 )
 
 

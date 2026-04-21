@@ -73,6 +73,7 @@ Useful optional arguments:
 ### Bedrock model configuration via `.env`
 
 - `BEDROCK_AGENT_MODEL_ID` - model used by conversational agent (Strands chat)
-- `BEDROCK_TASK_MODEL_ID` - model used by task analyzers (daily summary, homework matcher)
+- `BEDROCK_INSIGHTS_MODEL_ID` - model used by daily summary to analyze lesson notes
+- `BEDROCK_HOMEWORK_MATCHER_MODEL_ID` - model used by homework flow to match homework to students
 
 Both values can point to different Bedrock model IDs, so you can test model combinations independently.
