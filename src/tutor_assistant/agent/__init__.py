@@ -1,4 +1,4 @@
-"""LangGraph-based conversational agent entrypoints."""
+"""Strands-based conversational agent entrypoints."""
 
 from .graph import (
     ChatStreamEvent,

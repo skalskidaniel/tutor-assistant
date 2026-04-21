@@ -1,4 +1,4 @@
-"""LangChain tools wrapping existing tutor assistant use cases."""
+"""Strands tools wrapping existing tutor assistant use cases."""
 
 from __future__ import annotations
 
@@ -6,9 +6,18 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
-from langchain_core.tools import BaseTool, tool
+from strands import tool
+
+try:
+    from langsmith import traceable
+except Exception:  # noqa: BLE001
+    def traceable(*_args: object, **_kwargs: object):
+        def _decorator(func: object) -> object:
+            return func
+
+        return _decorator
 
 from tutor_assistant.core import (
     GOOGLE_ONBOARDING_SCOPES,
@@ -52,7 +61,9 @@ class AgentToolDefaults:
     max_concurrency: int = 4
 
 
-def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[BaseTool]:
+def create_agent_tools(
+    *, defaults: AgentToolDefaults | None = None
+) -> list[Callable[..., object]]:
     resolved_defaults = defaults or AgentToolDefaults()
     default_drive_parent_folder_id = (
         resolved_defaults.drive_parent_folder_id
@@ -63,7 +74,10 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
         or os.getenv("GOOGLE_HOMEWORK_DATABASE_FOLDER_ID")
     )
 
-    @tool
+    def _agent_tool(func: Callable[..., object]) -> Callable[..., object]:
+        return tool(traceable(run_type="tool", name=func.__name__)(func))
+
+    @_agent_tool
     def get_current_datetime() -> str:
         """Zwraca aktualna lokalna date, dzien tygodnia i godzine."""
 
@@ -83,7 +97,7 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
             f"Aktualna godzina: {now.strftime('%H:%M %Z')}."
         )
 
-    @tool
+    @_agent_tool
     def get_agent_configuration() -> str:
         """Zwraca aktualna konfiguracje agenta i dostepow (kalendarz, Drive, pliki auth)."""
 
@@ -102,7 +116,7 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
         ]
         return "\n".join(lines)
 
-    @tool
+    @_agent_tool
     def login_google_user(
         client_id: str | None = None,
         client_secret: str | None = None,
@@ -163,7 +177,7 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
         except Exception as exc:  # noqa: BLE001
             return _tool_error_message(exc)
 
-    @tool
+    @_agent_tool
     def onboard_student(
         first_name: str,
         last_name: str,
@@ -235,7 +249,7 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
         except Exception as exc:  # noqa: BLE001
             return _tool_error_message(exc)
 
-    @tool
+    @_agent_tool
     def cleanup_drive(
         drive_parent_folder_id: str | None = None,
     ) -> str:
@@ -260,7 +274,7 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
         except Exception as exc:  # noqa: BLE001
             return _tool_error_message(exc)
 
-    @tool
+    @_agent_tool
     def prepare_vacation_notifications(
         start_date: str,
         end_date: str | None = None,
@@ -318,7 +332,7 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
         except Exception as exc:  # noqa: BLE001
             return _tool_error_message(exc)
 
-    @tool
+    @_agent_tool
     def build_daily_summary(
         target_date: str | None = None,
         calendar_id: str | None = None,
@@ -394,7 +408,7 @@ def create_agent_tools(*, defaults: AgentToolDefaults | None = None) -> list[Bas
         except Exception as exc:  # noqa: BLE001
             return _tool_error_message(exc)
 
-    @tool
+    @_agent_tool
     def upload_homework_for_day(
         target_date: str | None = None,
         calendar_id: str | None = None,

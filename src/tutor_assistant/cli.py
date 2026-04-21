@@ -203,7 +203,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     chat = subparsers.add_parser(
         "chat",
-        help="Tryb interaktywnego agenta (LangGraph + Bedrock)",
+        help="Tryb interaktywnego agenta (Strands + Bedrock)",
     )
     chat.add_argument(
         "--calendar-id",
