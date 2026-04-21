@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from tutor_assistant.core import (  # pyright: ignore[reportMissingImports]
+from tutor.core import (  # pyright: ignore[reportMissingImports]
     CalendarLessonEvent,
     InMemoryLessonCalendarProvider,
 )
-from tutor_assistant.daily_summary.models import (  # pyright: ignore[reportMissingImports]
+from tutor.daily_summary.models import (  # pyright: ignore[reportMissingImports]
     ExtractedRecentPages,
     LatestNotesPdf,
     LessonInsights,
 )
-from tutor_assistant.homework import (  # pyright: ignore[reportMissingImports]
+from tutor.homework import (  # pyright: ignore[reportMissingImports]
     HomeworkDatabaseFile,
     HomeworkService,
 )

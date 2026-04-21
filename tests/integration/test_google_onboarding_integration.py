@@ -4,12 +4,12 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from tutor_assistant import GoogleDriveProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import MeetingSchedule  # pyright: ignore[reportMissingImports]
-from tutor_assistant import NewStudentRequest  # pyright: ignore[reportMissingImports]
-from tutor_assistant import StudentWelcomeService  # pyright: ignore[reportMissingImports]
-from tutor_assistant import WelcomePackage  # pyright: ignore[reportMissingImports]
+from tutor import GoogleDriveProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
+from tutor import MeetingSchedule  # pyright: ignore[reportMissingImports]
+from tutor import Student  # pyright: ignore[reportMissingImports]
+from tutor import StudentWelcomeService  # pyright: ignore[reportMissingImports]
+from tutor import WelcomePackage  # pyright: ignore[reportMissingImports]
 
 
 @pytest.mark.integration
@@ -29,7 +29,7 @@ def test_google_providers_integration_real_api() -> None:
         pytest.skip("Brak credentials.json dla testu integracyjnego Google API.")
 
     start = datetime.now(ZoneInfo("Europe/Warsaw")) + timedelta(days=1)
-    request = NewStudentRequest(
+    request = Student(
         first_name="Integracja",
         last_name="Testowa",
         email=os.getenv("GOOGLE_TEST_STUDENT_EMAIL", "integracja.test@example.com"),

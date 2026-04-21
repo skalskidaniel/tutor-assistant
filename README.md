@@ -58,7 +58,7 @@ imie-nazwisko/
 Interactive chat mode is available through CLI:
 
 ```bash
-uv run python -m tutor_assistant chat
+uv run python -m tutor.assistant chat
 ```
 
 Type `exit` or `quit` to close the session.
@@ -73,9 +73,9 @@ Useful optional arguments:
 Memory can also be managed from CLI:
 
 ```bash
-uv run python -m tutor_assistant memory-set --key reply_style --value "krotko i rzeczowo"
-uv run python -m tutor_assistant memory-list
-uv run python -m tutor_assistant memory-delete --key reply_style
+uv run python -m tutor.assistant memory-set --key reply_style --value "krotko i rzeczowo"
+uv run python -m tutor.assistant memory-list
+uv run python -m tutor.assistant memory-delete --key reply_style
 ```
 
 ### Trwala pamiec agenta

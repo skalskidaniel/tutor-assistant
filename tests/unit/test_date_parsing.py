@@ -1,6 +1,6 @@
 import pytest
 from datetime import date, timedelta
-from tutor_assistant.agent.tools.common import parse_date_value
+from tutor.assistant.agent.tools.common import parse_date_value
 
 def test_parse_date_value_exact_iso() -> None:
     assert parse_date_value("2024-05-15", field_name="test") == date(2024, 5, 15)

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tutor_assistant.core.auth import (  # pyright: ignore[reportMissingImports]
+from tutor.core.auth import (  # pyright: ignore[reportMissingImports]
     ensure_google_credentials_file,
 )
 

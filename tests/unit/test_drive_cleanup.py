@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from tutor_assistant.drive_cleanup import DriveCleanupService  # pyright: ignore[reportMissingImports]
-from tutor_assistant.drive_cleanup.models import (  # pyright: ignore[reportMissingImports]
+from tutor.drive_cleanup import DriveCleanupService  # pyright: ignore[reportMissingImports]
+from tutor.drive_cleanup.models import (  # pyright: ignore[reportMissingImports]
     DriveFile,
     DriveFolder,
 )

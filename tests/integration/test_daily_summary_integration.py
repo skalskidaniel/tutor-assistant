@@ -11,16 +11,16 @@ import pytest
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaInMemoryUpload
 
-from tutor_assistant import BedrockLessonInsightsProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import DailySummaryService  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleCalendarLessonProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleDriveProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleDriveStudentNotesProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import MeetingSchedule  # pyright: ignore[reportMissingImports]
-from tutor_assistant import NewStudentRequest  # pyright: ignore[reportMissingImports]
-from tutor_assistant import PyMuPdfRecentPagesProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant.core import (  # pyright: ignore[reportMissingImports]
+from tutor import BedrockLessonInsightsProvider  # pyright: ignore[reportMissingImports]
+from tutor import DailySummaryService  # pyright: ignore[reportMissingImports]
+from tutor import GoogleCalendarLessonProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleDriveProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleDriveStudentNotesProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
+from tutor import MeetingSchedule  # pyright: ignore[reportMissingImports]
+from tutor import Student  # pyright: ignore[reportMissingImports]
+from tutor import PyMuPdfRecentPagesProvider  # pyright: ignore[reportMissingImports]
+from tutor.core import (  # pyright: ignore[reportMissingImports]
     GOOGLE_ONBOARDING_SCOPES,
     load_google_credentials,
 )
@@ -47,7 +47,7 @@ def test_daily_summary_integration_real_google_and_bedrock() -> None:
         pytest.skip("Brak GOOGLE_DRIVE_PARENT_FOLDER_ID dla testu daily-summary.")
 
     start = datetime.now(ZoneInfo("Europe/Warsaw")) + timedelta(days=1)
-    request = NewStudentRequest(
+    request = Student(
         first_name="Integracja",
         last_name=f"Daily{uuid4().hex[:6]}",
         email=os.getenv("GOOGLE_TEST_STUDENT_EMAIL", "integracja.test@example.com"),

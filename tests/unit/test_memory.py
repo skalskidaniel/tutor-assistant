@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tutor_assistant.core.memory import DEFAULT_MEMORY_NAMESPACE, MemoryService
+from tutor.core.memory import DEFAULT_MEMORY_NAMESPACE, MemoryService
 
 
 def test_memory_service_persists_values_by_namespace(tmp_path: Path) -> None:

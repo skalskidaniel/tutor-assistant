@@ -7,13 +7,13 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from tutor_assistant import GmailProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleCalendarLessonProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import MeetingSchedule  # pyright: ignore[reportMissingImports]
-from tutor_assistant import NewStudentRequest  # pyright: ignore[reportMissingImports]
-from tutor_assistant import VacationNotificationService  # pyright: ignore[reportMissingImports]
-from tutor_assistant import VacationRequest  # pyright: ignore[reportMissingImports]
+from tutor import GmailProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleCalendarLessonProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
+from tutor import MeetingSchedule  # pyright: ignore[reportMissingImports]
+from tutor import Student  # pyright: ignore[reportMissingImports]
+from tutor import VacationNotificationService  # pyright: ignore[reportMissingImports]
+from tutor import VacationRequest  # pyright: ignore[reportMissingImports]
 
 
 @pytest.mark.integration
@@ -33,7 +33,7 @@ def test_vacation_calendar_provider_integration_real_api() -> None:
         pytest.skip("Brak credentials.json dla testu integracyjnego Google API.")
 
     start = datetime.now(ZoneInfo("Europe/Warsaw")) + timedelta(days=2)
-    request = NewStudentRequest(
+    request = Student(
         first_name="IntegracjaUrlop",
         last_name=f"Testowa{uuid4().hex[:6]}",
         email=os.getenv("GOOGLE_TEST_STUDENT_EMAIL", "integracja.test@example.com"),
@@ -52,7 +52,10 @@ def test_vacation_calendar_provider_integration_real_api() -> None:
         meet_provider.create_personal_meeting(request)
 
         calendar_provider = GoogleCalendarLessonProvider()
-        service = VacationNotificationService(calendar_provider=calendar_provider)
+        service = VacationNotificationService(
+            calendar_provider=calendar_provider,
+            schedule_url="https://example.com/schedule",
+        )
         result = service.prepare_notifications(
             request=VacationRequest(start_date=start.date(), end_date=start.date()),
             send_emails=False,

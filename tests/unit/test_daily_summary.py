@@ -4,21 +4,21 @@ from datetime import date, datetime, timezone
 
 import fitz
 
-from tutor_assistant.core.calendar import (  # pyright: ignore[reportMissingImports]
+from tutor.core.calendar import (  # pyright: ignore[reportMissingImports]
     CalendarLessonEvent,
     InMemoryLessonCalendarProvider,
 )
-from tutor_assistant.daily_summary.models import (  # pyright: ignore[reportMissingImports]
+from tutor.daily_summary.models import (  # pyright: ignore[reportMissingImports]
     ExtractedRecentPages,
     LatestNotesPdf,
     LessonInsights,
 )
-from tutor_assistant.daily_summary.providers import (  # pyright: ignore[reportMissingImports]
+from tutor.daily_summary.providers import (  # pyright: ignore[reportMissingImports]
     GoogleDriveStudentNotesProvider,
     PyMuPdfRecentPagesProvider,
     _parse_insights_json,
 )
-from tutor_assistant.daily_summary.service import (  # pyright: ignore[reportMissingImports]
+from tutor.daily_summary.service import (  # pyright: ignore[reportMissingImports]
     DailySummaryService,
 )
 
@@ -119,13 +119,13 @@ def test_pymupdf_recent_pages_provider_returns_last_three_page_images() -> None:
 def test_bedrock_json_parser_accepts_markdown_fences() -> None:
     raw = """```json
 {
-  "recent_notes_summary": "Uczen cwiczyl wielomiany."
+  "recent_notes_summary": "Uczeń cwiczyl wielomiany."
 }
 ```"""
 
     parsed = _parse_insights_json(raw)
 
-    assert parsed.recent_notes_summary == "Uczen cwiczyl wielomiany."
+    assert parsed.recent_notes_summary == "Uczeń cwiczyl wielomiany."
 
 
 class _FakeFilesResource:
@@ -151,7 +151,11 @@ class _FakeDriveService:
 
 
 def test_find_notes_folder_searches_recursively() -> None:
-    provider = GoogleDriveStudentNotesProvider(parent_folder_id="root")
+    provider = GoogleDriveStudentNotesProvider(
+        credentials_path="credentials.json",
+        token_path="token.json",
+        student_notes_folder_id="root",
+    )
     fake_drive = _FakeDriveService(
         {
             "student-root": [

@@ -1,16 +1,10 @@
-from tutor_assistant.agent.graph import (  # pyright: ignore[reportMissingImports]
+from tutor.assistant.agent.graph import (  # pyright: ignore[reportMissingImports]
     _build_system_prompt,
     _format_passthrough_tool_output,
     _is_passthrough_tool,
-    _prepare_user_input,
     _resolve_memory_namespace,
 )
-from tutor_assistant.core.memory import MemoryService
-
-
-def test_prepare_user_input_leaves_prompt_unchanged() -> None:
-    original = "Podaj konfiguracje agenta"
-    assert _prepare_user_input(original) == original
+from tutor.core.memory import MemoryService
 
 
 def test_is_passthrough_tool_includes_target_tools() -> None:
