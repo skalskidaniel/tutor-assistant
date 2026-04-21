@@ -12,3 +12,10 @@ class ChatStreamEvent:
     text: str
     status: Literal["pending", "completed", "error"] | None = None
     summary: str | None = None
+
+@dataclass
+class ThinkingStreamState:
+    """State of the thinking stream."""
+    inside_thinking: bool = False
+    carry: str = ""
+    pending_strip_visible_leading_newlines: bool = False

@@ -90,7 +90,7 @@ def resolve_agent_model_id() -> str:
 
 
 def _resolve_agent_model_id() -> str:
-    return os.getenv("BEDROCK_AGENT_MODEL_ID", DEFAULT_AGENT_MODEL_ID)
+    return os.getenv("BEDROCK_AGENT_MODEL_ID", DEFAULT_AGENT_MODEL_ID).split("/")[-1]
 
 
 def _resolve_region_name() -> str:

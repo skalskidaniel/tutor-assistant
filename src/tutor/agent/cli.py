@@ -15,6 +15,7 @@ from tutor.agent import (
     AgentToolDefaults,
     build_chat_session,
     resolve_agent_model_id,
+    ThinkingStreamState,
 )
 from tutor.daily_summary import (
     BedrockLessonInsightsProvider,
@@ -45,7 +46,6 @@ from tutor.vacation import (
     VacationNotificationService,
     VacationRequest,
 )
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -552,6 +552,8 @@ def _run_chat(args: argparse.Namespace) -> None:
             console.print("Do widzenia!")
             return
 
+        thinking_state = ThinkingStreamState()
+
         status.update("[bold green]Agent myśli...[/bold green]")
         status.start()
         status_running = True
@@ -577,14 +579,6 @@ def _run_chat(args: argparse.Namespace) -> None:
                             )
                     continue
 
-                if not started_response:
-                    if status_running:
-                        status.stop()
-                        status_running = False
-                    console.print("[bold #e27d60]Agent>[/bold #e27d60]")
-                    started_response = True
-
-                # Check for tool output tags and strip them
                 output_text = event.text
                 if event.kind == "tool_output":
                     output_text = (
@@ -594,12 +588,38 @@ def _run_chat(args: argparse.Namespace) -> None:
                         .replace("</tool_output>", "")
                     )
 
-                console.print(
-                    output_text,
-                    end="",
-                    highlight=False,
-                    markup=False,
+                visible_text, reasoning_text = _split_thinking_chunks(
+                    output_text, thinking_state
                 )
+                visible_text = _apply_pending_visible_leading_newline_strip(
+                    visible_text, thinking_state
+                )
+
+                if not visible_text and (not show_reasoning or not reasoning_text):
+                    continue
+
+                if not started_response:
+                    if status_running:
+                        status.stop()
+                        status_running = False
+                    console.print("[bold #e27d60]Agent>[/bold #e27d60]")
+                    started_response = True
+
+                if visible_text:
+                    console.print(
+                        visible_text,
+                        end="",
+                        highlight=False,
+                        markup=False,
+                    )
+                if show_reasoning and reasoning_text:
+                    console.print(
+                        reasoning_text,
+                        end="",
+                        style="dim",
+                        highlight=False,
+                        markup=False,
+                    )
         except Exception as exc:  # noqa: BLE001
             if status_running:
                 status.stop()
@@ -610,6 +630,30 @@ def _run_chat(args: argparse.Namespace) -> None:
         if status_running:
             status.stop()
             status_running = False
+
+        final_visible, final_reasoning = _flush_thinking_state(thinking_state)
+        final_visible = _apply_pending_visible_leading_newline_strip(
+            final_visible, thinking_state
+        )
+        if final_visible or (show_reasoning and final_reasoning):
+            if not started_response:
+                console.print("[bold #e27d60]Agent>[/bold #e27d60]")
+                started_response = True
+            if final_visible:
+                console.print(
+                    final_visible,
+                    end="",
+                    highlight=False,
+                    markup=False,
+                )
+            if show_reasoning and final_reasoning:
+                console.print(
+                    final_reasoning,
+                    end="",
+                    style="dim",
+                    highlight=False,
+                    markup=False,
+                )
 
         if started_response:
             console.print()
@@ -678,6 +722,73 @@ def _print_chat_header(console: Console, model_id: str) -> None:
         expand=False,
     )
     console.print(header)
+
+
+def _split_thinking_chunks(
+    chunk: str, state: ThinkingStreamState
+) -> tuple[str, str]:
+    open_tag = "<thinking>"
+    close_tag = "</thinking>"
+    combined = state.carry + chunk
+    state.carry = ""
+    visible_parts: list[str] = []
+    reasoning_parts: list[str] = []
+
+    while combined:
+        if state.inside_thinking:
+            close_index = combined.find(close_tag)
+            if close_index == -1:
+                keep = len(close_tag) - 1
+                if len(combined) > keep:
+                    reasoning_parts.append(combined[:-keep])
+                    state.carry = combined[-keep:]
+                else:
+                    state.carry = combined
+                break
+
+            reasoning_parts.append(combined[:close_index])
+            combined = combined[close_index + len(close_tag) :]
+            state.inside_thinking = False
+            state.pending_strip_visible_leading_newlines = True
+            continue
+
+        open_index = combined.find(open_tag)
+        if open_index == -1:
+            keep = len(open_tag) - 1
+            if len(combined) > keep:
+                visible_parts.append(combined[:-keep])
+                state.carry = combined[-keep:]
+            else:
+                state.carry = combined
+            break
+
+        visible_parts.append(combined[:open_index])
+        combined = combined[open_index + len(open_tag) :]
+        state.inside_thinking = True
+
+    return "".join(visible_parts), "".join(reasoning_parts)
+
+
+def _apply_pending_visible_leading_newline_strip(
+    visible_text: str, state: ThinkingStreamState
+) -> str:
+    if not state.pending_strip_visible_leading_newlines:
+        return visible_text
+    stripped = visible_text.lstrip("\n\r")
+    if stripped:
+        state.pending_strip_visible_leading_newlines = False
+    return stripped
+
+
+def _flush_thinking_state(state: ThinkingStreamState) -> tuple[str, str]:
+    if not state.carry:
+        return "", ""
+
+    tail = state.carry
+    state.carry = ""
+    if state.inside_thinking:
+        return "", tail
+    return tail, ""
 
 
 def _print_tool_event(
