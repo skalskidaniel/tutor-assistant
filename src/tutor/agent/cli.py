@@ -15,7 +15,7 @@ from tutor.agent import (
     AgentToolDefaults,
     build_chat_session,
     resolve_agent_model_id,
-    ThinkingStreamState,
+    ThinkingStreamParser,
 )
 from tutor.daily_summary import (
     BedrockLessonInsightsProvider,
@@ -46,8 +46,6 @@ from tutor.vacation import (
     VacationNotificationService,
     VacationRequest,
 )
-
-_ThinkingStreamState = ThinkingStreamState
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -356,8 +354,7 @@ def _run_chat(args: argparse.Namespace) -> None:
             console.print("Do widzenia!")
             return
 
-        thinking_state = ThinkingStreamState()
-        thinking_state.pending_strip_visible_leading_newlines = True
+        thinking_parser = ThinkingStreamParser()
 
         status.update("[bold green]Agent myśli...[/bold green]")
         status.start()
@@ -367,7 +364,7 @@ def _run_chat(args: argparse.Namespace) -> None:
         try:
             for event in session.stream(user_input):
                 if event.kind == "tool":
-                    thinking_state.pending_strip_visible_leading_newlines = True
+                    thinking_parser.mark_pending_visible_newline_strip()
                     if show_tools:
                         if event.status == "pending":
                             if started_response:
@@ -397,11 +394,9 @@ def _run_chat(args: argparse.Namespace) -> None:
                         .replace("</tool_output>", "")
                     )
 
-                visible_text, reasoning_text = _split_thinking_chunks(
-                    output_text, thinking_state
-                )
-                visible_text = _apply_pending_visible_leading_newline_strip(
-                    visible_text, thinking_state
+                visible_text, reasoning_text = thinking_parser.consume(output_text)
+                visible_text = thinking_parser.apply_pending_visible_leading_newline_strip(
+                    visible_text
                 )
 
                 if not visible_text and (not show_reasoning or not reasoning_text):
@@ -440,9 +435,9 @@ def _run_chat(args: argparse.Namespace) -> None:
             status.stop()
             status_running = False
 
-        final_visible, final_reasoning = _flush_thinking_state(thinking_state)
-        final_visible = _apply_pending_visible_leading_newline_strip(
-            final_visible, thinking_state
+        final_visible, final_reasoning = thinking_parser.flush()
+        final_visible = thinking_parser.apply_pending_visible_leading_newline_strip(
+            final_visible
         )
         if final_visible or (show_reasoning and final_reasoning):
             if not started_response:
@@ -529,73 +524,6 @@ def _print_chat_header(console: Console, model_id: str) -> None:
         expand=False,
     )
     console.print(header)
-
-
-def _split_thinking_chunks(
-    chunk: str, state: ThinkingStreamState
-) -> tuple[str, str]:
-    open_tag = "<thinking>"
-    close_tag = "</thinking>"
-    combined = state.carry + chunk
-    state.carry = ""
-    visible_parts: list[str] = []
-    reasoning_parts: list[str] = []
-
-    while combined:
-        if state.inside_thinking:
-            close_index = combined.find(close_tag)
-            if close_index == -1:
-                keep = len(close_tag) - 1
-                if len(combined) > keep:
-                    reasoning_parts.append(combined[:-keep])
-                    state.carry = combined[-keep:]
-                else:
-                    state.carry = combined
-                break
-
-            reasoning_parts.append(combined[:close_index])
-            combined = combined[close_index + len(close_tag) :]
-            state.inside_thinking = False
-            state.pending_strip_visible_leading_newlines = True
-            continue
-
-        open_index = combined.find(open_tag)
-        if open_index == -1:
-            keep = len(open_tag) - 1
-            if len(combined) > keep:
-                visible_parts.append(combined[:-keep])
-                state.carry = combined[-keep:]
-            else:
-                state.carry = combined
-            break
-
-        visible_parts.append(combined[:open_index])
-        combined = combined[open_index + len(open_tag) :]
-        state.inside_thinking = True
-
-    return "".join(visible_parts), "".join(reasoning_parts)
-
-
-def _apply_pending_visible_leading_newline_strip(
-    visible_text: str, state: ThinkingStreamState
-) -> str:
-    if not state.pending_strip_visible_leading_newlines:
-        return visible_text
-    stripped = visible_text.lstrip("\n\r ")
-    if stripped:
-        state.pending_strip_visible_leading_newlines = False
-    return stripped
-
-
-def _flush_thinking_state(state: ThinkingStreamState) -> tuple[str, str]:
-    if not state.carry:
-        return "", ""
-
-    tail = state.carry
-    state.carry = ""
-    if state.inside_thinking:
-        return "", tail
-    return tail, ""
 
 
 def _print_tool_event(

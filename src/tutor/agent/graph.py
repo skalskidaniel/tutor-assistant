@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 import os
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from strands import Agent
 from strands.models import BedrockModel

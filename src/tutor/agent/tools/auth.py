@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 from typing import Callable
 
 from tutor.core import (
