@@ -12,7 +12,7 @@ from .session import AgentChatSession, _extract_text_from_tool_result_content
 from .tools import AgentToolDefaults, create_agent_tools
 
 
-DEFAULT_AGENT_MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
+DEFAULT_AGENT_MODEL_ID = "amazon.nova-lite-v1:0"
 PASSTHROUGH_TOOL_NAMES = {
     "build_daily_summary",
     "onboard_student",
@@ -20,7 +20,7 @@ PASSTHROUGH_TOOL_NAMES = {
 }
 SYSTEM_PROMPT = (
     "Jesteś asystentem nauczyciela matematyki. "
-    "Rozmawiaj po polsku i odpowiadaj zwięźle. "
+    "Rozmawiaj tylko w języku polskim i odpowiadaj zwięźle. "
     "Masz aktywne dostępy przez lokalne credentials/token i narzędzia. "
     "Nie pisz, że nie masz dostępu, dopóki nie spróbowałeś wywołać odpowiedniego narzędzia. "
     "Gdy brakuje credentials.json albo token.json, najpierw użyj login_google_user. "
@@ -54,7 +54,7 @@ def build_agent_app(
     model = BedrockModel(
         model_id=_resolve_agent_model_id(),
         region_name=_resolve_region_name(),
-        temperature=0,
+        temperature=0.4,
         max_tokens=1200,
     )
     return Agent(

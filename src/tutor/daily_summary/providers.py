@@ -315,7 +315,7 @@ class BedrockLessonInsightsProvider:
     ) -> None:
         self._model_id = model_id or os.getenv(
             "BEDROCK_INSIGHTS_MODEL_ID",
-            "anthropic.claude-3-haiku-20240307-v1:0",
+            "anthropic.claude-opus-4-5-20251101-v1:0",
         )
         self._region_name = (
             region_name
@@ -407,7 +407,7 @@ class BedrockLessonInsightsProvider:
             "wyłącznie poprawny JSON bez markdown i bez dodatkowego tekstu.\n\n"
             "Wymagany format JSON:\n"
             "{\n"
-            '  "recent_notes_summary": "krótkie podsumowanie max 4 zdania"\n'
+            '  "recent_notes_summary": "krótkie podsumowanie max 2 zdania"\n'
             "}\n\n"
             "Zasady:\n"
             "1) Pole recent_notes_summary oprzyj TYLKO na przesilanych obrazach stron.\n"

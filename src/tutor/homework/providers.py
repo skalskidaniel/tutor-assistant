@@ -267,7 +267,7 @@ class BedrockHomeworkMatcher:
     ) -> None:
         self._model_id = model_id or os.getenv(
             "BEDROCK_HOMEWORK_MATCHER_MODEL_ID",
-            "anthropic.claude-3-haiku-20240307-v1:0",
+            "amazon.nova-micro-v1:0",
         )
         self._region_name = (
             region_name
@@ -291,9 +291,6 @@ class BedrockHomeworkMatcher:
         )
 
         payload = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 400,
-            "temperature": 0,
             "messages": [
                 {
                     "role": "user",

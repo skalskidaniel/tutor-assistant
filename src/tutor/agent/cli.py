@@ -47,197 +47,17 @@ from tutor.vacation import (
     VacationRequest,
 )
 
+_ThinkingStreamState = ThinkingStreamState
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Uruchamia workflow use case'ów asystenta nauczyciela."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    onboard = subparsers.add_parser(
-        "onboard",
-        help="Use Case 2: onboarding nowego ucznia",
-    )
-    onboard.add_argument("--first-name", required=True, help="Imie ucznia")
-    onboard.add_argument("--last-name", required=True, help="Nazwisko ucznia")
-    onboard.add_argument("--email", required=True, help="Email ucznia")
-    onboard.add_argument("--phone", required=True, help="Telefon ucznia")
-    onboard.add_argument(
-        "--calendar-id",
-        default="primary",
-        help="ID kalendarza Google (domyślnie: primary)",
-    )
-    onboard.add_argument(
-        "--meeting-duration-minutes",
-        type=int,
-        default=60,
-        help="Długość spotkania (domyślnie: 60)",
-    )
-    onboard.add_argument(
-        "--timezone",
-        default="Europe/Warsaw",
-        help="Strefa czasowa dla wydarzenia (domyślnie: Europe/Warsaw)",
-    )
-    onboard.add_argument(
-        "--drive-parent-folder-id",
-        default=os.getenv("GOOGLE_DRIVE_PARENT_FOLDER_ID"),
-        help="Opcjonalny folder nadrzędny na Google Drive",
-    )
-    onboard.add_argument(
-        "--meeting-date", required=True, help="Data pierwszego spotkania YYYY-MM-DD"
-    )
-    onboard.add_argument(
-        "--hour",
-        type=int,
-        required=True,
-        help="Godzina spotkania 0-23",
-    )
-    onboard.add_argument(
-        "--minute",
-        type=int,
-        required=True,
-        help="Minuta spotkania 0-59",
-    )
-    onboard.add_argument(
-        "--recurrence",
-        choices=("none", "weekly", "biweekly"),
-        default="weekly",
-        help="Powtarzalność spotkania (domyślnie: weekly)",
-    )
-    onboard.add_argument(
-        "--occurrences",
-        type=int,
-        default=None,
-        help="Opcjonalna liczba wystąpień spotkania",
-    )
-
-    cleanup = subparsers.add_parser(
-        "cleanup-drive",
-        help="Use Case 4: cleanup folderów Google Drive",
-    )
-    cleanup.add_argument(
-        "--drive-parent-folder-id",
-        default=None,
-        help="Folder nadrzędny, zawierający foldery uczniów",
-    )
-
-    vacation = subparsers.add_parser(
-        "vacation",
-        help="Use Case 3: powiadomienia o nieobecności",
-    )
-    vacation.add_argument("--start-date", required=True, help="Data startu YYYY-MM-DD")
-    vacation.add_argument(
-        "--end-date",
-        default=None,
-        help="Data końca YYYY-MM-DD (domyślnie taka sama jak start-date)",
-    )
-    vacation.add_argument(
-        "--calendar-id",
-        default="primary",
-        help="ID kalendarza Google (domyślnie: primary)",
-    )
-    vacation.add_argument(
-        "--send-emails",
-        action="store_true",
-        help="Wyślij automatycznie e-maile do uczniów",
-    )
-
-    daily_summary = subparsers.add_parser(
-        "daily-summary",
-        help="Use Case 1: dzienne podsumowanie zajęć",
-    )
-    daily_summary.add_argument(
-        "--date",
-        default=None,
-        help="Data podsumowania YYYY-MM-DD (domyślnie dzisiaj)",
-    )
-    daily_summary.add_argument(
-        "--calendar-id",
-        default="primary",
-        help="ID kalendarza Google (domyślnie: primary)",
-    )
-    daily_summary.add_argument(
-        "--drive-parent-folder-id",
-        default=None,
-        help="Folder nadrzędny, zawierający foldery uczniów",
-    )
-    daily_summary.add_argument(
-        "--max-concurrency",
-        type=int,
-        default=4,
-        help="Maksymalna liczba równoległych analiz lekcji (domyślnie: 4)",
-    )
-
-    upload_homework = subparsers.add_parser(
-        "upload-homework",
-        help="Use Case 5: upload zadań domowych po lekcjach",
-    )
-    upload_homework.add_argument(
-        "--date",
-        default=None,
-        help="Data zajęć YYYY-MM-DD (domyślnie dzisiaj)",
-    )
-    upload_homework.add_argument(
-        "--calendar-id",
-        default="primary",
-        help="ID kalendarza Google (domyślnie: primary)",
-    )
-    upload_homework.add_argument(
-        "--drive-parent-folder-id",
-        default=None,
-        help="Folder nadrzędny, zawierający foldery uczniów",
-    )
-    upload_homework.add_argument(
-        "--homework-db-folder-id",
-        default=None,
-        help="Folder bazy zadań domowych na Google Drive",
-    )
-    upload_homework.add_argument(
-        "--max-concurrency",
-        type=int,
-        default=4,
-        help="Maksymalna liczba równoległych uploadów (domyślnie: 4)",
-    )
-
     chat = subparsers.add_parser(
         "chat",
         help="Tryb interaktywnego agenta",
-    )
-    chat.add_argument(
-        "--calendar-id",
-        default="primary",
-        help="ID kalendarza Google (domyślnie: primary)",
-    )
-    chat.add_argument(
-        "--timezone",
-        default="Europe/Warsaw",
-        help="Strefa czasowa spotkań (domyślnie: Europe/Warsaw)",
-    )
-    chat.add_argument(
-        "--meeting-duration-minutes",
-        type=int,
-        default=60,
-        help="Dlugość spotkania (domyślnie: 60)",
-    )
-    chat.add_argument(
-        "--drive-parent-folder-id",
-        default=None,
-        help="Folder nadrzędny, zawierający foldery uczniów",
-    )
-    chat.add_argument(
-        "--homework-db-folder-id",
-        default=None,
-        help="Folder bazy zadań domowych na Google Drive",
-    )
-    chat.add_argument(
-        "--max-concurrency",
-        type=int,
-        default=4,
-        help="Maksymalna liczba równoległych analiz/uploadow (domyślnie: 4)",
-    )
-    chat.add_argument(
-        "--thread-id",
-        default="teacher-cli",
-        help="Identyfikator sesji konwersacji (domyślnie: teacher-cli)",
     )
     chat.add_argument(
         "--hide-tools",
@@ -249,38 +69,43 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Pokaz krótkie logi procesu pracy agenta",
     )
+    chat.add_argument(
+        "--thread-id",
+        default=DEFAULT_MEMORY_NAMESPACE,
+        help="Identyfikator sesji (namespace pamięci agenta)",
+    )
 
     memory_set = subparsers.add_parser(
         "memory-set",
-        help="Zapisuje trwałą wartość w pamięci agenta",
+        help="Zapisz wartość w pamięci agenta",
     )
     memory_set.add_argument("--key", required=True, help="Klucz pamięci")
-    memory_set.add_argument("--value", required=True, help="Wartość do zapisania")
+    memory_set.add_argument("--value", required=True, help="Wartość pamięci")
     memory_set.add_argument(
         "--thread-id",
         default=DEFAULT_MEMORY_NAMESPACE,
-        help="Namespace pamięci (domyślnie: teacher-cli)",
+        help="Namespace pamięci",
     )
 
     memory_list = subparsers.add_parser(
         "memory-list",
-        help="Wyświetla zapisaną pamięć agenta",
+        help="Pokaż zapisane wartości pamięci agenta",
     )
     memory_list.add_argument(
         "--thread-id",
         default=DEFAULT_MEMORY_NAMESPACE,
-        help="Namespace pamięci (domyślnie: teacher-cli)",
+        help="Namespace pamięci",
     )
 
     memory_delete = subparsers.add_parser(
         "memory-delete",
-        help="Usuwa klucz z pamięci agenta",
+        help="Usuń klucz z pamięci agenta",
     )
     memory_delete.add_argument("--key", required=True, help="Klucz pamięci")
     memory_delete.add_argument(
         "--thread-id",
         default=DEFAULT_MEMORY_NAMESPACE,
-        help="Namespace pamięci (domyślnie: teacher-cli)",
+        help="Namespace pamięci",
     )
 
     return parser
@@ -290,38 +115,15 @@ def main() -> None:
     load_dotenv(Path(".env"), override=True)
     args = build_parser().parse_args()
 
-    if args.command == "onboard":
-        _run_onboard(args)
-        return
-
-    if args.command == "cleanup-drive":
-        _run_cleanup_drive(args)
-        return
-
-    if args.command == "vacation":
-        _run_vacation(args)
-        return
-
-    if args.command == "daily-summary":
-        _run_daily_summary(args)
-        return
-
-    if args.command == "upload-homework":
-        _run_upload_homework(args)
-        return
-
     if args.command == "chat":
         _run_chat(args)
         return
-
     if args.command == "memory-set":
         _run_memory_set(args)
         return
-
     if args.command == "memory-list":
         _run_memory_list(args)
         return
-
     if args.command == "memory-delete":
         _run_memory_delete(args)
         return
@@ -520,15 +322,12 @@ def _run_chat(args: argparse.Namespace) -> None:
     status = console.status("[bold green]Agent mysli...[/bold green]", spinner="dots")
 
     defaults = AgentToolDefaults(
-        calendar_id=args.calendar_id,
-        timezone=args.timezone,
-        meeting_duration_minutes=args.meeting_duration_minutes,
-        drive_parent_folder_id=args.drive_parent_folder_id,
-        homework_db_folder_id=args.homework_db_folder_id,
-        max_concurrency=args.max_concurrency,
         progress_callback=status.update,
     )
-    session = build_chat_session(defaults=defaults, thread_id=args.thread_id)
+    session = build_chat_session(
+        defaults=defaults,
+        thread_id=_resolve_thread_id(args),
+    )
     show_tools = not args.hide_tools
     show_reasoning = args.show_reasoning
     model_id = resolve_agent_model_id()
@@ -548,11 +347,17 @@ def _run_chat(args: argparse.Namespace) -> None:
         if not user_input:
             continue
 
+        print("\033[1A\033[2K", end="", flush=True)
+        console.print("[bold white]Ty[/bold white]")
+        console.print(user_input)
+        console.print()
+
         if user_input.casefold() in {"exit", "quit"}:
             console.print("Do widzenia!")
             return
 
         thinking_state = ThinkingStreamState()
+        thinking_state.pending_strip_visible_leading_newlines = True
 
         status.update("[bold green]Agent myśli...[/bold green]")
         status.start()
@@ -562,8 +367,12 @@ def _run_chat(args: argparse.Namespace) -> None:
         try:
             for event in session.stream(user_input):
                 if event.kind == "tool":
+                    thinking_state.pending_strip_visible_leading_newlines = True
                     if show_tools:
                         if event.status == "pending":
+                            if started_response:
+                                console.print()
+                                started_response = False
                             status.update(f"[grey50]{event.text}...[/grey50]")
                             if not status_running:
                                 status.start()
@@ -602,7 +411,7 @@ def _run_chat(args: argparse.Namespace) -> None:
                     if status_running:
                         status.stop()
                         status_running = False
-                    console.print("[bold #e27d60]Agent>[/bold #e27d60]")
+                    console.print("[bold #5bc0de]Agent[/bold #5bc0de]")
                     started_response = True
 
                 if visible_text:
@@ -637,7 +446,7 @@ def _run_chat(args: argparse.Namespace) -> None:
         )
         if final_visible or (show_reasoning and final_reasoning):
             if not started_response:
-                console.print("[bold #e27d60]Agent>[/bold #e27d60]")
+                console.print("[bold #5bc0de]Agent[/bold #5bc0de]")
                 started_response = True
             if final_visible:
                 console.print(
@@ -662,23 +471,25 @@ def _run_chat(args: argparse.Namespace) -> None:
 
         if show_reasoning:
             console.print("[dim]Agent zakończył zadanie bez treści odpowiedzi.[/dim]")
-        console.print("[bold #e27d60]Agent>[/bold #e27d60] Gotowe.\n")
+        console.print("[bold #5bc0de]Agent[/bold #5bc0de] Gotowe.\n")
 
 
 def _run_memory_set(args: argparse.Namespace) -> None:
     memory_service = MemoryService()
-    memory_service.set(namespace=args.thread_id, key=args.key, value=args.value)
+    thread_id = _resolve_thread_id(args)
+    memory_service.set(namespace=thread_id, key=args.key, value=args.value)
 
     print("Zapisano wartosc w pamieci agenta.\n")
-    print(f"thread_id: {args.thread_id}")
+    print(f"thread_id: {thread_id}")
     print(f"key: {args.key}")
 
 
 def _run_memory_list(args: argparse.Namespace) -> None:
     memory_service = MemoryService()
-    entries = memory_service.get_all(namespace=args.thread_id)
+    thread_id = _resolve_thread_id(args)
+    entries = memory_service.get_all(namespace=thread_id)
 
-    print(f"Pamiec agenta dla thread_id={args.thread_id}:\n")
+    print(f"Pamiec agenta dla thread_id={thread_id}:\n")
     if not entries:
         print("(pusto)")
         return
@@ -689,9 +500,10 @@ def _run_memory_list(args: argparse.Namespace) -> None:
 
 def _run_memory_delete(args: argparse.Namespace) -> None:
     memory_service = MemoryService()
-    deleted = memory_service.delete(namespace=args.thread_id, key=args.key)
+    thread_id = _resolve_thread_id(args)
+    deleted = memory_service.delete(namespace=thread_id, key=args.key)
 
-    print(f"thread_id: {args.thread_id}")
+    print(f"thread_id: {thread_id}")
     print(f"key: {args.key}")
     if deleted:
         print("Status: usunieto")
@@ -700,20 +512,15 @@ def _run_memory_delete(args: argparse.Namespace) -> None:
 
 
 def _print_chat_header(console: Console, model_id: str) -> None:
-    icon = Text.assemble(
-        ("   ▄▄██▄▄   \n", "bold #5bc0de"),
-        (" ▄█ ▀  ▀ █▄ \n", "bold #5bc0de"),
-        ("  ▀▀▄▄▄▄▀▀  ", "bold #5bc0de"),
-    )
-
+    
     meta = Text()
-    meta.append("Tutor assistant\n", style="bold white")
+    meta.append("Tutor assistant\n", style="bold #5bc0de")
     meta.append(f"Model: {model_id}", style="grey70")
 
     grid = Table.grid(padding=(0, 2))
     grid.add_column(no_wrap=True)
     grid.add_column()
-    grid.add_row(icon, meta)
+    grid.add_row(meta)
 
     header = Panel(
         grid,
@@ -774,7 +581,7 @@ def _apply_pending_visible_leading_newline_strip(
 ) -> str:
     if not state.pending_strip_visible_leading_newlines:
         return visible_text
-    stripped = visible_text.lstrip("\n\r")
+    stripped = visible_text.lstrip("\n\r ")
     if stripped:
         state.pending_strip_visible_leading_newlines = False
     return stripped
@@ -835,6 +642,12 @@ def _format_clock_time(value: datetime) -> str:
     if value.tzinfo is None:
         return value.strftime("%H:%M")
     return value.astimezone().strftime("%H:%M")
+
+
+def _resolve_thread_id(args: argparse.Namespace) -> str:
+    value = getattr(args, "thread_id", DEFAULT_MEMORY_NAMESPACE)
+    value = value.strip() if isinstance(value, str) else ""
+    return value or DEFAULT_MEMORY_NAMESPACE
 
 
 if __name__ == "__main__":
