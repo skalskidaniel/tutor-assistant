@@ -10,8 +10,8 @@ from tutor.core import GOOGLE_ONBOARDING_SCOPES, load_google_credentials, resolv
 
 def build_drive_service(
     *,
-    credentials_path: str | Path | None = "credentials.json",
-    token_path: str | Path | None = "token.json",
+    credentials_path: str | Path | None = "secrets/credentials.json",
+    token_path: str | Path | None = "secrets/token.json",
 ):
     resolved_credentials_path = resolve_required_path(
         explicit_path=credentials_path,

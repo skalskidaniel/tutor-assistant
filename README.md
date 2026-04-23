@@ -78,6 +78,86 @@ uv run python -m tutor.agent memory-list
 uv run python -m tutor.agent memory-delete --key reply_style
 ```
 
+## Docker onboarding for new users
+
+Use Docker to run the agent without local Python setup. Each user must provide their own credentials.
+
+### 1) Prepare `secrets/.env` from template
+
+Copy the example file and fill in your own values:
+
+```bash
+mkdir -p secrets memory .logs
+cp secrets/.env.example secrets/.env
+```
+
+At minimum, set:
+
+- `AWS_REGION`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `BEDROCK_AGENT_MODEL_ID`
+- `BEDROCK_INSIGHTS_MODEL_ID`
+- `BEDROCK_HOMEWORK_MATCHER_MODEL_ID`
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `GOOGLE_OAUTH_CLIENT_SECRET`
+- `GOOGLE_OAUTH_PROJECT_ID`
+- `GOOGLE_HOMEWORK_DATABASE_FOLDER_ID`
+- `GOOGLE_DRIVE_STUDENT_NOTES_FOLDER_ID`
+- `GOOGLE_BOOK_SCHEDULE_URL`
+
+### 2) Prepare runtime directories
+
+Create local log directory:
+
+```bash
+mkdir -p .logs
+```
+
+Google credentials behavior:
+
+- If `secrets/credentials.json` does not exist, the app will generate it from `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` in `secrets/.env`.
+- On first run, complete browser login to generate `secrets/token.json`.
+- If your app is in GCP OAuth Testing mode, your account must be added to Test users.
+
+### 3) Run with Docker Compose
+
+Single command to build (if needed) and start interactive chat:
+
+```bash
+docker compose run --build --rm tutor-assistant
+```
+
+The container runs in interactive mode (`tty` + `stdin_open`), so you can chat directly in terminal.
+
+If you want CLI-like UX without Docker Compose logs, use the local wrapper script:
+
+```bash
+./tutor-assistant
+```
+
+This behaves like `uv run tutor-assistant chat`, but runs inside Docker.
+
+Useful command overrides:
+
+```bash
+docker compose run --rm tutor-assistant memory-list
+docker compose run --rm tutor-assistant memory-set --key reply_style --value "krotko i rzeczowo"
+docker compose run --rm tutor-assistant memory-delete --key reply_style
+
+# equivalent commands through wrapper (no compose logs)
+./tutor-assistant memory-list
+./tutor-assistant memory-set --key reply_style --value "krotko i rzeczowo"
+./tutor-assistant memory-delete --key reply_style
+```
+
+### 4) Troubleshooting
+
+- If Google login fails, confirm your account is listed as a GCP OAuth test user.
+- If `credentials.json` is not found, verify your `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` values in `secrets/.env`.
+- If token refresh/auth loops happen, delete `secrets/token.json` and log in again.
+- If writes fail, ensure `secrets/`, `memory/`, and `.logs/` are writable on host.
+
 ### Trwala pamiec agenta
 
 Chat agent ma lokalna pamiec trwala, zapisywana w pliku `.agent_memory.json`.
@@ -88,7 +168,7 @@ Chat agent ma lokalna pamiec trwala, zapisywana w pliku `.agent_memory.json`.
 - Agent moze wyswietlic obecna pamiec przez `read_memory`.
 - Lokalizacje pliku pamieci mozna zmienic przez `TUTOR_AGENT_MEMORY_PATH`.
 
-### Bedrock model configuration via `.env`
+### Bedrock model configuration via `secrets/.env`
 
 - `BEDROCK_AGENT_MODEL_ID` - model used by conversational agent (Strands chat)
 - `BEDROCK_INSIGHTS_MODEL_ID` - model used by daily summary to analyze lesson notes

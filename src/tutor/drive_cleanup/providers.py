@@ -30,8 +30,8 @@ class GoogleDriveCleanupProvider:
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = "credentials.json",
-        token_path: str | Path | None = "token.json",
+        credentials_path: str | Path | None = "secrets/credentials.json",
+        token_path: str | Path | None = "secrets/token.json",
         student_notes_folder_id: str | None = None,
     ) -> None:
         self._credentials_path = resolve_required_path(

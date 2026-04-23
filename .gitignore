@@ -45,12 +45,17 @@ htmlcov/
 .DS_Store
 
 # Local environment and secrets
-.env
-.env.*
-!.env.example
-credentials.json
-token.json
-.agent_memory.json
+/.env
+/.env.*
+/credentials.json
+/token.json
+/.agent_memory.json
+secrets/.env
+secrets/.env.*
+!secrets/.env.example
+secrets/credentials.json
+secrets/token.json
+memory/.agent_memory.json
 
 # Runtime/log files
 *.log

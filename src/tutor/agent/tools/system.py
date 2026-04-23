@@ -39,9 +39,9 @@ def make_get_agent_configuration_tool(
     def get_agent_configuration() -> str:
         """Zwraca aktualną konfigurację agenta i dostępów (kalendarz, Google Drive, pliki auth)."""
         credentials_path = Path(
-            os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
+            os.getenv("GOOGLE_CREDENTIALS_PATH", "secrets/credentials.json")
         )
-        token_path = Path(os.getenv("GOOGLE_TOKEN_PATH", "token.json"))
+        token_path = Path(os.getenv("GOOGLE_TOKEN_PATH", "secrets/token.json"))
         lines = [
             "Konfiguracja agenta:",
             f"- calendar_id (domyślnie): {defaults.calendar_id}",

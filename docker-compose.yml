@@ -1,0 +1,17 @@
+services:
+  tutor-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    stdin_open: true
+    tty: true
+    env_file:
+      - secrets/.env
+    environment:
+      GOOGLE_CREDENTIALS_PATH: /data/secrets/credentials.json
+      GOOGLE_TOKEN_PATH: /data/secrets/token.json
+      TUTOR_AGENT_MEMORY_PATH: /data/memory/.agent_memory.json
+      TUTOR_LOG_DIR: /data/.logs
+    command: ["chat"]
+    volumes:
+      - ./:/data

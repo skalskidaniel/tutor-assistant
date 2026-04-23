@@ -18,11 +18,11 @@ def make_login_google_user_tool() -> Callable[..., object]:
         run_browser_auth: bool = True,
     ) -> str:
         credentials_path = resolve_required_path(
-            explicit_path="credentials.json",
+            explicit_path="secrets/credentials.json",
             env_var_name="GOOGLE_CREDENTIALS_PATH",
         )
         token_path = resolve_required_path(
-            explicit_path="token.json",
+            explicit_path="secrets/token.json",
             env_var_name="GOOGLE_TOKEN_PATH",
         )
 

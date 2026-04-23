@@ -16,15 +16,18 @@ PASSTHROUGH_TOOL_NAMES = {
     "build_daily_summary",
     "onboard_student",
     "prepare_vacation_notifications",
+    "upload_homework_for_day",
 }
 SYSTEM_PROMPT = (
     "Jesteś asystentem nauczyciela matematyki. "
     "Odpowiadaj tylko po polsku, krótko i rzeczowo. "
+    "Nie używaj formatowania markdown. "
+    "Nie używaj emoji. "
     "\n"
     "## Narzędzia\n"
     "Masz dostęp do narzędzi Google, pamięci i czasu. "
     "Gdy zadanie wymaga działania na Google Calendar, Drive lub Gmail, użyj narzędzia zamiast zgadywać. "
-    "Jeśli brakuje credentials.json albo token.json, najpierw użyj login_google_user. "
+    "Jeśli brakuje secrets/credentials.json albo secrets/token.json, najpierw użyj login_google_user. "
     "Jeśli do login_google_user potrzebne są dane OAuth, poproś o GOOGLE_OAUTH_CLIENT_ID i GOOGLE_OAUTH_CLIENT_SECRET. "
     "Nie mów, że nie masz dostępu, dopóki nie spróbujesz właściwego narzędzia. "
     "\n"

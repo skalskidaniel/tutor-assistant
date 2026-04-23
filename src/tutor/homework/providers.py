@@ -48,8 +48,8 @@ class GoogleDriveHomeworkProvider:
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = "credentials.json",
-        token_path: str | Path | None = "token.json",
+        credentials_path: str | Path | None = "secrets/credentials.json",
+        token_path: str | Path | None = "secrets/token.json",
         parent_folder_id: str | None = None,
         homework_database_folder_id: str | None = None,
     ) -> None:

@@ -42,8 +42,8 @@ class GoogleCalendarLessonProvider:
     def __init__(
         self,
         *,
-        credentials_path: str | Path | None = "credentials.json",
-        token_path: str | Path | None = "token.json",
+        credentials_path: str | Path | None = "secrets/credentials.json",
+        token_path: str | Path | None = "secrets/token.json",
         calendar_id: str = "primary",
         include_drive_scope: bool = False,
     ) -> None:

@@ -111,7 +111,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    load_dotenv(Path(".env"), override=True)
+    dotenv_path = Path("secrets/.env")
+    if dotenv_path.exists():
+        load_dotenv(dotenv_path, override=True)
+    else:
+        load_dotenv(Path(".env"), override=True)
     args = build_parser().parse_args()
 
     session_name = None
@@ -368,6 +372,8 @@ def _run_chat(args: argparse.Namespace) -> None:
         status.start()
         status_running = True
         started_response = False
+        rendered_reasoning = False
+        inserted_reasoning_answer_gap = False
 
         try:
             for event in session.stream(user_input):
@@ -417,6 +423,17 @@ def _run_chat(args: argparse.Namespace) -> None:
                     console.print("[bold #5bc0de]Agent[/bold #5bc0de]")
                     started_response = True
 
+                if (
+                    show_reasoning
+                    and rendered_reasoning
+                    and not inserted_reasoning_answer_gap
+                    and visible_text
+                ):
+                    visible_text = visible_text.lstrip("\r\n")
+                    console.print()
+                    console.print()
+                    inserted_reasoning_answer_gap = True
+
                 if visible_text:
                     console.print(
                         visible_text,
@@ -432,6 +449,7 @@ def _run_chat(args: argparse.Namespace) -> None:
                         highlight=False,
                         markup=False,
                     )
+                    rendered_reasoning = True
         except Exception as exc:  # noqa: BLE001
             if status_running:
                 status.stop()
@@ -451,6 +469,16 @@ def _run_chat(args: argparse.Namespace) -> None:
             if not started_response:
                 console.print("[bold #5bc0de]Agent[/bold #5bc0de]")
                 started_response = True
+            if (
+                show_reasoning
+                and rendered_reasoning
+                and not inserted_reasoning_answer_gap
+                and final_visible
+            ):
+                final_visible = final_visible.lstrip("\r\n")
+                console.print()
+                console.print()
+                inserted_reasoning_answer_gap = True
             if final_visible:
                 console.print(
                     final_visible,
@@ -466,6 +494,7 @@ def _run_chat(args: argparse.Namespace) -> None:
                     highlight=False,
                     markup=False,
                 )
+                rendered_reasoning = True
 
         if started_response:
             console.print()
@@ -568,8 +597,8 @@ def _print_tool_event(
     text.append(tool_name, style=style)
     text.append("]", style=style)
 
-    if status == "error" and summary:
-        text.append(f" {summary}", style=style)
+    # if status == "error" and summary:
+    #     text.append(f" {summary}", style=style)
 
     console.print(text)
 

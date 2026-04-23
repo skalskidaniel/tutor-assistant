@@ -33,12 +33,12 @@ def slugify(value: str) -> str:
 def resolve_required_path(
     *, explicit_path: str | Path | None, env_var_name: str
 ) -> Path:
-    if explicit_path is not None:
-        return Path(explicit_path)
-
     env_value = os.getenv(env_var_name)
     if env_value:
         return Path(env_value)
+
+    if explicit_path is not None:
+        return Path(explicit_path)
 
     raise ValueError(
         f"Did not resolve the path. Set {env_var_name}."
