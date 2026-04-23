@@ -48,20 +48,30 @@ def extract_bedrock_text(payload: object) -> str:
     if not isinstance(payload, dict):
         raise RuntimeError("Bedrock returned unexpected response.")
 
-    content_raw = payload.get("content")
-    if not isinstance(content_raw, list):
-        raise RuntimeError("Bedrock did not returned content field.")
+    content_candidates: list[object] = []
+    content_candidates.append(payload.get("content"))
 
-    content = cast(list[object], content_raw)
+    output = payload.get("output")
+    if isinstance(output, dict):
+        message = output.get("message")
+        if isinstance(message, dict):
+            content_candidates.append(message.get("content"))
 
-    for block in content:
-        if not isinstance(block, dict):
+    for candidate in content_candidates:
+        if not isinstance(candidate, list):
             continue
-        text = block.get("text")
-        if isinstance(text, str) and text.strip():
-            return text
+        content = cast(list[object], candidate)
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            text = block.get("text")
+            if isinstance(text, str) and text.strip():
+                return text
 
-    raise RuntimeError("AWS bedrock did not return text.")
+    raise RuntimeError(
+        "AWS Bedrock response does not contain text content "
+        "in 'content' or 'output.message.content'."
+    )
 
 def format_http_error(error: HttpError) -> str:
     status = getattr(error.resp, "status", "unknown")
