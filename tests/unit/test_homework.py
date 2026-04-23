@@ -2,17 +2,16 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from tutor_assistant.core import (  # pyright: ignore[reportMissingImports]
-    CalendarLessonEvent,
-    InMemoryLessonCalendarProvider,
-)
-from tutor_assistant.daily_summary.models import (  # pyright: ignore[reportMissingImports]
+
+from tutor.daily_summary.models import (  # pyright: ignore[reportMissingImports]
     ExtractedRecentPages,
     LatestNotesPdf,
     LessonInsights,
 )
-from tutor_assistant.homework import (  # pyright: ignore[reportMissingImports]
-    HomeworkDatabaseFile,
+from tests.mocks import InMemoryLessonCalendarProvider
+from tutor.core import CalendarLessonEvent as LessonEvent
+from tutor.homework import (  # pyright: ignore[reportMissingImports]
+    DriveFile,
     HomeworkService,
 )
 
@@ -55,7 +54,7 @@ class FakeHomeworkDriveProvider:
     def __init__(
         self,
         *,
-        files: list[HomeworkDatabaseFile],
+        files: list[DriveFile],
         student_homework_folders: dict[str, str | None],
         failing_source_ids: set[str] | None = None,
     ) -> None:
@@ -64,7 +63,7 @@ class FakeHomeworkDriveProvider:
         self._failing_source_ids = failing_source_ids or set()
         self.copy_calls: list[tuple[str, str, str]] = []
 
-    def list_homework_database_files(self) -> list[HomeworkDatabaseFile]:
+    def list_homework_database_files(self) -> list[DriveFile]:
         return list(self._files)
 
     def find_student_homework_folder(self, *, student_name: str) -> str | None:
@@ -113,22 +112,22 @@ def test_homework_service_uploads_and_returns_detailed_statuses() -> None:
     target_date = date(2026, 4, 20)
     calendar_provider = InMemoryLessonCalendarProvider(
         events=[
-            CalendarLessonEvent(
+                LessonEvent(
                 student_name="Ala A",
                 lesson_date=target_date,
                 start_time=datetime(2026, 4, 20, 10, 0, tzinfo=timezone.utc),
             ),
-            CalendarLessonEvent(
+                LessonEvent(
                 student_name="Bartek B",
                 lesson_date=target_date,
                 start_time=datetime(2026, 4, 20, 11, 0, tzinfo=timezone.utc),
             ),
-            CalendarLessonEvent(
+                LessonEvent(
                 student_name="Celina C",
                 lesson_date=target_date,
                 start_time=datetime(2026, 4, 20, 12, 0, tzinfo=timezone.utc),
             ),
-            CalendarLessonEvent(
+                LessonEvent(
                 student_name="Dawid D",
                 lesson_date=target_date,
                 start_time=datetime(2026, 4, 20, 13, 0, tzinfo=timezone.utc),
@@ -145,8 +144,8 @@ def test_homework_service_uploads_and_returns_detailed_statuses() -> None:
     )
     drive_provider = FakeHomeworkDriveProvider(
         files=[
-            HomeworkDatabaseFile(id="hw-1", name="funkcja-kwadratowa.pdf"),
-            HomeworkDatabaseFile(id="hw-2", name="geometria.pdf"),
+            DriveFile(id="hw-1", name="funkcja-kwadratowa.pdf"),
+            DriveFile(id="hw-2", name="geometria.pdf"),
         ],
         student_homework_folders={
             "Ala A": "folder-ala",
@@ -193,7 +192,7 @@ def test_homework_service_handles_empty_database() -> None:
     target_date = date(2026, 4, 20)
     calendar_provider = InMemoryLessonCalendarProvider(
         events=[
-            CalendarLessonEvent(
+                LessonEvent(
                 student_name="Ela E",
                 lesson_date=target_date,
                 start_time=datetime(2026, 4, 20, 9, 0, tzinfo=timezone.utc),
@@ -229,14 +228,14 @@ def test_homework_service_handles_empty_database() -> None:
 def test_homework_service_handles_matcher_and_upload_errors() -> None:
     target_date = date(2026, 4, 20)
     upload_error_drive = FakeHomeworkDriveProvider(
-        files=[HomeworkDatabaseFile(id="hw-g", name="graniastoslupy.pdf")],
+        files=[DriveFile(id="hw-g", name="graniastoslupy.pdf")],
         student_homework_folders={"Gosia G": "folder-gosia"},
         failing_source_ids={"hw-g"},
     )
     upload_service = HomeworkService(
         calendar_provider=InMemoryLessonCalendarProvider(
             events=[
-                CalendarLessonEvent(
+                LessonEvent(
                     student_name="Gosia G",
                     lesson_date=target_date,
                     start_time=datetime(2026, 4, 20, 15, 0, tzinfo=timezone.utc),
@@ -259,7 +258,7 @@ def test_homework_service_handles_matcher_and_upload_errors() -> None:
     matcher_error_service = HomeworkService(
         calendar_provider=InMemoryLessonCalendarProvider(
             events=[
-                CalendarLessonEvent(
+                LessonEvent(
                     student_name="Filip F",
                     lesson_date=target_date,
                     start_time=datetime(2026, 4, 20, 14, 0, tzinfo=timezone.utc),
@@ -274,7 +273,7 @@ def test_homework_service_handles_matcher_and_upload_errors() -> None:
         pdf_recent_pages_provider=FakeRecentPagesProvider(),
         insights_provider=FakeInsightsProvider(),
         homework_drive_provider=FakeHomeworkDriveProvider(
-            files=[HomeworkDatabaseFile(id="hw-f", name="funkcje.pdf")],
+            files=[DriveFile(id="hw-f", name="funkcje.pdf")],
             student_homework_folders={"Filip F": "folder-filip"},
         ),
         homework_matcher=FailingMatcher(),

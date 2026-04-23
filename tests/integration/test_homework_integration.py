@@ -6,23 +6,23 @@ import os
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-import fitz
+import pymupdf
 import pytest
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaInMemoryUpload
 
-from tutor_assistant import BedrockHomeworkMatcher  # pyright: ignore[reportMissingImports]
-from tutor_assistant import BedrockLessonInsightsProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleCalendarLessonProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleDriveHomeworkProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleDriveProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleDriveStudentNotesProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import HomeworkService  # pyright: ignore[reportMissingImports]
-from tutor_assistant import MeetingSchedule  # pyright: ignore[reportMissingImports]
-from tutor_assistant import NewStudentRequest  # pyright: ignore[reportMissingImports]
-from tutor_assistant import PyMuPdfRecentPagesProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant.core import (  # pyright: ignore[reportMissingImports]
+from tutor import BedrockHomeworkMatcher  # pyright: ignore[reportMissingImports]
+from tutor import BedrockLessonInsightsProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleCalendarLessonProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleDriveHomeworkProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleDriveProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleDriveStudentNotesProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
+from tutor import HomeworkService  # pyright: ignore[reportMissingImports]
+from tutor import MeetingSchedule  # pyright: ignore[reportMissingImports]
+from tutor import Student  # pyright: ignore[reportMissingImports]
+from tutor import PyMuPdfRecentPagesProvider  # pyright: ignore[reportMissingImports]
+from tutor.core import (  # pyright: ignore[reportMissingImports]
     GOOGLE_ONBOARDING_SCOPES,
     load_google_credentials,
 )
@@ -54,7 +54,7 @@ def test_homework_upload_integration_real_google_and_bedrock() -> None:
 
     start = datetime.now(ZoneInfo("Europe/Warsaw")) + timedelta(days=1)
     token = uuid4().hex[:8]
-    request = NewStudentRequest(
+    request = Student(
         first_name="Integracja",
         last_name=f"Homework{token}",
         email=os.getenv("GOOGLE_TEST_STUDENT_EMAIL", "integracja.test@example.com"),
@@ -215,7 +215,7 @@ def _upload_pdf(*, drive_service, parent_folder_id: str, file_name: str, pdf_byt
 
 
 def _build_notes_pdf_bytes(*, topic_token: str) -> bytes:
-    doc = fitz.open()
+    doc = pymupdf.open()
     page = doc.new_page()
     page.insert_text(
         (72, 72),
@@ -230,7 +230,7 @@ def _build_notes_pdf_bytes(*, topic_token: str) -> bytes:
 
 
 def _build_homework_pdf_bytes(*, topic_token: str) -> bytes:
-    doc = fitz.open()
+    doc = pymupdf.open()
     page = doc.new_page()
     page.insert_text((72, 72), f"Praca domowa testowa: zadanie-{topic_token}.pdf")
     pdf_bytes = doc.tobytes()

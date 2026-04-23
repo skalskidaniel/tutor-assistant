@@ -2,31 +2,33 @@ from __future__ import annotations
 
 from datetime import date
 
-from tutor_assistant.vacation import (  # pyright: ignore[reportMissingImports]
-    CalendarLessonEvent,
+from tests.mocks import (
     InMemoryEmailProvider,
     InMemoryLessonCalendarProvider,
+)
+from tutor.vacation import (
     VacationNotificationService,
     VacationRequest,
 )
+from tutor.core import CalendarLessonEvent as LessonEvent
 
 
 def test_prepare_notifications_groups_dates_and_includes_contact_data() -> None:
     provider = InMemoryLessonCalendarProvider(
         events=[
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Jan Kowalski",
                 lesson_date=date(2026, 7, 1),
                 student_email="jan@example.com",
                 student_phone="+48500100200",
             ),
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Jan Kowalski",
                 lesson_date=date(2026, 7, 8),
                 student_email="jan@example.com",
                 student_phone="+48500100200",
             ),
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Anna Nowak",
                 lesson_date=date(2026, 7, 2),
                 student_email="anna@example.com",
@@ -34,7 +36,10 @@ def test_prepare_notifications_groups_dates_and_includes_contact_data() -> None:
             ),
         ]
     )
-    service = VacationNotificationService(calendar_provider=provider)
+    service = VacationNotificationService(
+        calendar_provider=provider,
+        schedule_url="https://example.com/schedule",
+    )
 
     result = service.prepare_notifications(
         request=VacationRequest(start_date=date(2026, 7, 1), end_date=date(2026, 7, 8)),
@@ -57,14 +62,14 @@ def test_prepare_notifications_groups_dates_and_includes_contact_data() -> None:
 def test_prepare_notifications_sends_emails_when_enabled() -> None:
     calendar_provider = InMemoryLessonCalendarProvider(
         events=[
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Jan Kowalski",
                 lesson_date=date(2026, 7, 1),
                 student_email="jan@example.com",
                 student_phone="+48500100200",
             ),
-            CalendarLessonEvent(
-                student_name="Uczen Bez Maila",
+            LessonEvent(
+                student_name="Uczeń Bez Maila",
                 lesson_date=date(2026, 7, 1),
                 student_email=None,
                 student_phone="+48500999888",
@@ -75,6 +80,7 @@ def test_prepare_notifications_sends_emails_when_enabled() -> None:
     service = VacationNotificationService(
         calendar_provider=calendar_provider,
         email_provider=email_provider,
+        schedule_url="https://example.com/schedule",
     )
 
     result = service.prepare_notifications(
@@ -85,14 +91,14 @@ def test_prepare_notifications_sends_emails_when_enabled() -> None:
     assert len(email_provider.sent_messages) == 1
     recipient, subject, body = email_provider.sent_messages[0]
     assert recipient == "jan@example.com"
-    assert subject == "Zmiana terminu zajec"
+    assert subject == "Zmiana terminu zajęć"
     assert "01.07.2026" in body
 
     jan_notice = [
         notice for notice in result.notices if notice.student_name == "Jan Kowalski"
     ][0]
     no_email_notice = [
-        notice for notice in result.notices if notice.student_name == "Uczen Bez Maila"
+        notice for notice in result.notices if notice.student_name == "Uczeń Bez Maila"
     ][0]
     assert jan_notice.email_sent is True
     assert no_email_notice.email_sent is False
@@ -101,7 +107,7 @@ def test_prepare_notifications_sends_emails_when_enabled() -> None:
 def test_prepare_notifications_requires_email_provider_when_send_enabled() -> None:
     calendar_provider = InMemoryLessonCalendarProvider(
         events=[
-            CalendarLessonEvent(
+            LessonEvent(
                 student_name="Jan Kowalski",
                 lesson_date=date(2026, 7, 1),
                 student_email="jan@example.com",
@@ -109,7 +115,10 @@ def test_prepare_notifications_requires_email_provider_when_send_enabled() -> No
             )
         ]
     )
-    service = VacationNotificationService(calendar_provider=calendar_provider)
+    service = VacationNotificationService(
+        calendar_provider=calendar_provider,
+        schedule_url="https://example.com/schedule",
+    )
 
     try:
         service.prepare_notifications(

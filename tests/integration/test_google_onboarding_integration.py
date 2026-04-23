@@ -4,12 +4,12 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from tutor_assistant import GoogleDriveProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
-from tutor_assistant import MeetingSchedule  # pyright: ignore[reportMissingImports]
-from tutor_assistant import NewStudentRequest  # pyright: ignore[reportMissingImports]
-from tutor_assistant import StudentWelcomeService  # pyright: ignore[reportMissingImports]
-from tutor_assistant import WelcomePackage  # pyright: ignore[reportMissingImports]
+from tutor import GoogleDriveProvider  # pyright: ignore[reportMissingImports]
+from tutor import GoogleMeetProvider  # pyright: ignore[reportMissingImports]
+from tutor import MeetingSchedule  # pyright: ignore[reportMissingImports]
+from tutor import Student  # pyright: ignore[reportMissingImports]
+from tutor import StudentWelcomeService  # pyright: ignore[reportMissingImports]
+from tutor import WelcomePackage  # pyright: ignore[reportMissingImports]
 
 
 @pytest.mark.integration
@@ -29,21 +29,20 @@ def test_google_providers_integration_real_api() -> None:
         pytest.skip("Brak credentials.json dla testu integracyjnego Google API.")
 
     start = datetime.now(ZoneInfo("Europe/Warsaw")) + timedelta(days=1)
-    request = NewStudentRequest(
+    request = Student(
         first_name="Integracja",
         last_name="Testowa",
         email=os.getenv("GOOGLE_TEST_STUDENT_EMAIL", "integracja.test@example.com"),
         phone="+48500100200",
     )
-    meet_provider = GoogleMeetProvider(
-        schedule=MeetingSchedule(
-            meeting_date=start.date(),
-            hour=start.hour,
-            minute=start.minute,
-            recurrence="weekly",
-            occurrences=2,
-        )
+    schedule = MeetingSchedule(
+        meeting_date=start.date(),
+        hour=start.hour,
+        minute=start.minute,
+        recurrence="weekly",
+        occurrences=2,
     )
+    meet_provider = GoogleMeetProvider()
     drive_provider = GoogleDriveProvider()
     service = StudentWelcomeService(
         meet_provider=meet_provider,
@@ -51,7 +50,7 @@ def test_google_providers_integration_real_api() -> None:
     )
 
     try:
-        result = service.onboard_student(request)
+        result = service.onboard_student(request, schedule)
     finally:
         meet_provider.delete_last_created_meeting()
         drive_provider.delete_last_created_workspace()
