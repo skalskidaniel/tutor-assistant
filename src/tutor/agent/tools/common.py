@@ -1,13 +1,58 @@
 import os
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from functools import wraps
+from threading import Lock
 from typing import Callable
 
 import dateparser
 from strands import tool
 
 
+MAX_TOOL_SELF_REPAIR_ATTEMPTS = 3
+TOOL_ERROR_PREFIX = "Wystąpił błąd podczas wykonania narzędzia"
+
+
+class ToolUserActionRequiredError(Exception):
+    """Raised when the tool requires explicit user approval first."""
+
+
+@dataclass
+class _FailureTracker:
+    failures: int = 0
+    lock: Lock = field(default_factory=Lock)
+
+    def mark_success(self) -> None:
+        with self.lock:
+            self.failures = 0
+
+    def mark_failure(self) -> int:
+        with self.lock:
+            self.failures += 1
+            return self.failures
+
+
 def agent_tool(func: Callable[..., object]) -> Callable[..., object]:
-    return tool(func)
+    tracker = _FailureTracker()
+
+    @wraps(func)
+    def guarded(*args: object, **kwargs: object) -> object:
+        try:
+            result = func(*args, **kwargs)
+        except ToolUserActionRequiredError as error:
+            tracker.mark_success()
+            return build_user_action_required_message(error=error)
+        except Exception as error:  # noqa: BLE001
+            failure_count = tracker.mark_failure()
+            return build_tool_failure_message(
+                error=error,
+                failure_count=failure_count,
+            )
+
+        tracker.mark_success()
+        return result
+
+    return tool(guarded)
 
 
 def parse_date_value(
@@ -104,8 +149,46 @@ def looks_like_placeholder(value: str) -> bool:
     return any(marker in normalized for marker in markers)
 
 
-def tool_error_message(error: Exception) -> str:
-    return f"Wystapil blad podczas wykonania narzedzia: {error}"
+def build_tool_failure_message(
+    *,
+    error: Exception,
+    failure_count: int,
+    max_failures: int = MAX_TOOL_SELF_REPAIR_ATTEMPTS,
+) -> str:
+    base = f"{TOOL_ERROR_PREFIX}: {error}"
+    if failure_count < max_failures:
+        return (
+            f"{base}\n"
+            "AUTONAPRAWA: Przeanalizuj błąd i spróbuj ponownie wywołać to samo "
+            "narzędzie z poprawionymi argumentami. "
+            f"To próba {failure_count} z {max_failures}."
+        )
+
+    return (
+        f"{base}\n"
+        f"AUTONAPRAWA: Osiągnięto limit {max_failures} błędnych prób. "
+        "Nie próbuj ponownie. Zgłoś błąd użytkownikowi i poproś o poprawkę "
+        "danych albo decyzje."
+    )
+
+
+def build_user_action_required_message(*, error: Exception) -> str:
+    return (
+        f"{TOOL_ERROR_PREFIX}: {error}\n"
+        "AUTONAPRAWA: To nie jest błąd techniczny. Nie ponawiaj automatycznie. "
+        "Najpierw uzyskaj decyzje użytkownika i dopiero wtedy wykonaj narzędzie ponownie."
+    )
+
+
+def require_user_approval(*, approved_by_user: bool, operation: str) -> None:
+    if approved_by_user:
+        return
+
+    raise ToolUserActionRequiredError(
+        "Wymagana jest wyraźna zgoda użytkownika przed operacją krytyczną: "
+        f"{operation}. Zapytaj o potwierdzenie i po zgodzie wywołaj narzędzie "
+        "ponownie z approved_by_user=true."
+    )
 
 
 def format_lesson_time_range(

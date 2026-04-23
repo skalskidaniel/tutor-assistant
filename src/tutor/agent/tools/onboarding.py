@@ -5,7 +5,7 @@ from tutor.onboarding import (
     MeetingSchedule,
     StudentWelcomeService,
 )
-from .common import agent_tool, parse_date_value, tool_error_message
+from .common import agent_tool, parse_date_value, require_user_approval
 
 
 def make_onboard_student_tool(service: StudentWelcomeService) -> Callable[..., object]:
@@ -20,33 +20,36 @@ def make_onboard_student_tool(service: StudentWelcomeService) -> Callable[..., o
         minute: int,
         recurrence: Literal["none", "weekly", "biweekly"] = "weekly",
         occurrences: int | None = None,
+        approved_by_user: bool = False,
     ) -> str:
         """Onboarduje nowego ucznia i tworzy link Meet oraz folder na Google Drive."""
-        try:
-            request = Student(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                phone=phone,
-            )
-            schedule = MeetingSchedule(
-                meeting_date=parse_date_value(meeting_date, field_name="meeting_date"),
-                hour=hour,
-                minute=minute,
-                recurrence=recurrence,
-                occurrences=occurrences,
-            )
+        require_user_approval(
+            approved_by_user=approved_by_user,
+            operation="zapisanie lekcji w kalendarzu",
+        )
 
-            package = service.onboard_student(request, schedule)
+        request = Student(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone=phone,
+        )
+        schedule = MeetingSchedule(
+            meeting_date=parse_date_value(meeting_date, field_name="meeting_date"),
+            hour=hour,
+            minute=minute,
+            recurrence=recurrence,
+            occurrences=occurrences,
+        )
 
-            return (
-                "Onboarding zakończony pomyślnie.\n"
-                f"Google Meet: {package.meet_link}\n"
-                f"Google Drive: {package.drive_folder_url}\n"
-                "Wiadomość do ucznia:\n"
-                f"{package.message_for_student}"
-            )
-        except Exception as exc:  # noqa: BLE001
-            return tool_error_message(exc)
+        package = service.onboard_student(request, schedule)
+
+        return (
+            "Onboarding zakończony pomyślnie.\n"
+            f"Google Meet: {package.meet_link}\n"
+            f"Google Drive: {package.drive_folder_url}\n"
+            "Wiadomość do ucznia:\n"
+            f"{package.message_for_student}"
+        )
 
     return onboard_student

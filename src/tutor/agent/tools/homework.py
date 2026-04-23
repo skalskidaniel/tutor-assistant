@@ -5,7 +5,6 @@ from .common import (
     agent_tool,
     format_lesson_time_range,
     parse_date_value,
-    tool_error_message,
 )
 
 
@@ -20,38 +19,35 @@ def make_upload_homework_for_day_tool(
 
         Gdy chodzi o dzisiaj, pomiń argument `target_date`.
         """
-        try:
-            selected_date = parse_date_value(
-                target_date,
-                field_name="target_date",
-                default_to_today=True,
+        selected_date = parse_date_value(
+            target_date,
+            field_name="target_date",
+            default_to_today=True,
+        )
+
+        result = service.upload_homework_for_day(target_date=selected_date)
+
+        lines = [
+            f"Upload zadań domowych dla: {selected_date.isoformat()}",
+            f"Liczba zaplanowanych lekcji: {result.scanned_events}",
+            f"Liczba przesłanych zadań: {result.uploaded_homeworks}",
+        ]
+
+        for index, assignment in enumerate(result.assignments, start=1):
+            lesson_time = format_lesson_time_range(
+                start=assignment.lesson_start_time,
+                end=assignment.lesson_end_time,
+            )
+            lines.append(
+                f"[{index}] Godzina: {lesson_time}\n"
+                f"Uczeń: {assignment.student_name}\n"
+                f"Status: {assignment.status}"
+            )
+            lines.append(f"Szczegóły: {assignment.status_details}")
+            lines.append(
+                f"Przesłane zadanie: {assignment.uploaded_homework_name or 'brak'}"
             )
 
-            result = service.upload_homework_for_day(target_date=selected_date)
-
-            lines = [
-                f"Upload zadań domowych dla: {selected_date.isoformat()}",
-                f"Liczba zaplanowanych lekcji: {result.scanned_events}",
-                f"Liczba przesłanych zadań: {result.uploaded_homeworks}",
-            ]
-
-            for index, assignment in enumerate(result.assignments, start=1):
-                lesson_time = format_lesson_time_range(
-                    start=assignment.lesson_start_time,
-                    end=assignment.lesson_end_time,
-                )
-                lines.append(
-                    f"[{index}] Godzina: {lesson_time}\n"
-                    f"Uczeń: {assignment.student_name}\n"
-                    f"Status: {assignment.status}"
-                )
-                lines.append(f"Szczegóły: {assignment.status_details}")
-                lines.append(
-                    f"Przesłane zadanie: {assignment.uploaded_homework_name or 'brak'}"
-                )
-
-            return "\n".join(lines)
-        except Exception as exc:  # noqa: BLE001
-            return tool_error_message(exc)
+        return "\n".join(lines)
 
     return upload_homework_for_day

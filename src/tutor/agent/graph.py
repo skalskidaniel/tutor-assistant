@@ -33,6 +33,14 @@ SYSTEM_PROMPT = (
     "Zwracaj go dokładnie 1:1, opakowany w znaczniki: "
     "<tool_output> ... </tool_output>. "
     "Nie dodawaj żadnego tekstu przed ani po tych znacznikach. "
+    "Dla KAŻDEGO błędu narzędzia najpierw spróbuj samonaprawy: "
+    "przeanalizuj treść błędu i ponów wywołanie narzędzia z poprawionymi argumentami. "
+    "Jeśli po 3 próbach nadal występuje błąd, dopiero wtedy zgłoś problem użytkownikowi. "
+    "Przed operacjami krytycznymi musisz uzyskać wyraźną zgodę użytkownika: "
+    "(1) prepare_vacation_notifications tylko gdy send_emails=true, "
+    "(2) onboard_student zawsze przed zapisaniem lekcji w kalendarzu. "
+    "Po otrzymaniu zgody wywołaj narzędzie krytyczne z approved_by_user=true. "
+    "Dla narzędzi niekrytycznych nie pytaj o zgodę i działaj od razu. "
     "Gdy użytkownik prosi o zapamiętanie preferencji, domyślnych identyfikatorów "
     "(np. kalendarza/folderów) lub innych ustawień, użyj narzędzia save_to_memory. "
     "Gdy użytkownik prosi o usunięcie zapamiętanych danych, użyj delete_from_memory."
@@ -133,7 +141,7 @@ def _extract_tool_statuses(
         status: Literal["completed", "error"]
         if (
             status_raw == "error"
-            or "Wystapil blad podczas wykonania narzedzia" in content
+            or _is_tool_error_content(content)
         ):
             status = "error"
         else:
@@ -156,6 +164,13 @@ def _summarize_tool_content(content: str) -> str:
 
     truncated = cleaned[:137].rsplit(" ", 1)[0].rstrip()
     return f"{truncated}..."
+
+
+def _is_tool_error_content(content: str) -> bool:
+    return (
+        "Wystapil blad podczas wykonania narzedzia" in content
+        or "Wystąpił błąd podczas wykonania narzędzia" in content
+    )
 
 
 def _is_passthrough_tool(tool_name: str) -> bool:

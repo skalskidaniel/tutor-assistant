@@ -1,6 +1,7 @@
 from tutor.agent.graph import (  # pyright: ignore[reportMissingImports]
     _build_system_prompt,
     _format_passthrough_tool_output,
+    _is_tool_error_content,
     _is_passthrough_tool,
     _resolve_memory_namespace,
 )
@@ -38,3 +39,18 @@ def test_build_system_prompt_includes_saved_memory(monkeypatch, tmp_path) -> Non
     assert "<agent_memory>" in prompt
     assert "- styl: krotko" in prompt
     assert "</agent_memory>" in prompt
+
+
+def test_build_system_prompt_includes_critical_action_approval_rules() -> None:
+    prompt = _build_system_prompt(thread_id="teacher-cli")
+
+    assert "Przed operacjami krytycznymi musisz uzyskać wyraźną zgodę użytkownika" in prompt
+    assert "prepare_vacation_notifications tylko gdy send_emails=true" in prompt
+    assert "onboard_student zawsze przed zapisaniem lekcji w kalendarzu" in prompt
+
+
+def test_is_tool_error_content_detects_tool_error_prefix() -> None:
+    assert _is_tool_error_content(
+        "Wystapil blad podczas wykonania narzedzia: niepoprawny format"
+    )
+    assert not _is_tool_error_content("Narzędzie wykonane poprawnie")
