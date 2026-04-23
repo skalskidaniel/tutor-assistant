@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import date, datetime
+import importlib
 import os
 from pathlib import Path
 
@@ -322,6 +323,7 @@ def _run_upload_homework(args: argparse.Namespace) -> None:
 
 
 def _run_chat(args: argparse.Namespace) -> None:
+    _initialize_line_editing()
     console = Console()
     status = console.status("[bold green]Agent mysli...[/bold green]", spinner="dots")
 
@@ -473,6 +475,22 @@ def _run_chat(args: argparse.Namespace) -> None:
         if show_reasoning:
             console.print("[dim]Agent zakończył zadanie bez treści odpowiedzi.[/dim]")
         console.print("[bold #5bc0de]Agent[/bold #5bc0de] Gotowe.\n")
+
+
+def _initialize_line_editing() -> None:
+    try:
+        readline = importlib.import_module("readline")
+    except Exception:  # noqa: BLE001
+        return
+
+    parse_and_bind = getattr(readline, "parse_and_bind", None)
+    if not callable(parse_and_bind):
+        return
+
+    try:
+        parse_and_bind("tab: complete")
+    except Exception:  # noqa: BLE001
+        return
 
 
 def _run_memory_set(args: argparse.Namespace) -> None:

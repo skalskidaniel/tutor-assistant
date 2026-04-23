@@ -1,6 +1,9 @@
 from argparse import Namespace
+import importlib
+from types import SimpleNamespace
 
 from tutor.agent.cli import (  # pyright: ignore[reportMissingImports]
+    _initialize_line_editing,
     _run_memory_delete,
     _run_memory_list,
     _run_memory_set,
@@ -40,3 +43,27 @@ def test_memory_cli_roundtrip(monkeypatch, tmp_path, capsys) -> None:
 
     assert "Status: usunieto" in output_after_delete
     assert "(pusto)" in output_after_delete
+
+
+def test_initialize_line_editing_binds_tab_completion_when_readline_available(
+    monkeypatch,
+) -> None:
+    calls: list[str] = []
+
+    fake_readline = SimpleNamespace(parse_and_bind=lambda value: calls.append(value))
+    monkeypatch.setattr(
+        importlib, "import_module", lambda name: fake_readline if name == "readline" else None
+    )
+
+    _initialize_line_editing()
+
+    assert calls == ["tab: complete"]
+
+
+def test_initialize_line_editing_noop_when_readline_unavailable(monkeypatch) -> None:
+    def _raise_module_not_found(name: str) -> None:
+        raise ModuleNotFoundError(name)
+
+    monkeypatch.setattr(importlib, "import_module", _raise_module_not_found)
+
+    _initialize_line_editing()
