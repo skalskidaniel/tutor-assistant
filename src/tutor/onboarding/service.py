@@ -9,7 +9,7 @@ from .providers import DriveProvider, MeetProvider
 
 
 class StudentWelcomeService:
-    """Koordynuje pelny onboarding nowego ucznia."""
+    """Koordynuje pełny onboarding nowego ucznia."""
 
     def __init__(
         self, meet_provider: MeetProvider, drive_provider: DriveProvider

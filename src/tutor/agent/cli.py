@@ -111,10 +111,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     load_dotenv(Path(".env"), override=True)
-    setup_telemetry()
     args = build_parser().parse_args()
 
+    session_name = None
     if args.command == "chat":
+        thread_id = getattr(args, "thread_id", DEFAULT_MEMORY_NAMESPACE)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        session_name = f"chat-{thread_id}-{timestamp}"
+
+        setup_telemetry(session_name=session_name)
         _run_chat(args)
         return
     if args.command == "memory-set":

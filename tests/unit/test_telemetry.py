@@ -13,11 +13,11 @@ def test_setup_telemetry_creates_log_directory_and_files(monkeypatch, tmp_path: 
     telemetry._close_trace_log_stream()
     telemetry._is_initialized = False
 
-    telemetry.setup_telemetry()
+    telemetry.setup_telemetry(session_name="test-session")
 
     assert log_dir.exists()
-    assert (log_dir / "tutor-assistant.log").exists()
-    assert (log_dir / "strands-telemetry.log").exists()
+    assert (log_dir / "tutor-assistant-test-session.log").exists()
+    assert (log_dir / "strands-telemetry-test-session.log").exists()
 
     telemetry._close_trace_log_stream()
     telemetry._is_initialized = False

@@ -27,24 +27,29 @@ _trace_log_stream: TextIO | None = None
 class TelemetrySettings:
     log_level: int
     log_dir: Path
+    session_name: str | None = None
 
     @property
     def app_log_path(self) -> Path:
+        if self.session_name:
+            return self.log_dir / f"tutor-assistant-{self.session_name}.log"
         return self.log_dir / _APP_LOG_FILE
 
     @property
     def trace_log_path(self) -> Path:
+        if self.session_name:
+            return self.log_dir / f"strands-telemetry-{self.session_name}.log"
         return self.log_dir / _TRACE_LOG_FILE
 
 
-def setup_telemetry() -> None:
+def setup_telemetry(session_name: str | None = None) -> None:
     global _is_initialized
 
     with _setup_lock:
         if _is_initialized:
             return
 
-        settings = _resolve_settings()
+        settings = _resolve_settings(session_name)
         settings.log_dir.mkdir(parents=True, exist_ok=True)
 
         _configure_python_logging(settings)
@@ -62,14 +67,14 @@ def setup_telemetry() -> None:
         _is_initialized = True
 
 
-def _resolve_settings() -> TelemetrySettings:
+def _resolve_settings(session_name: str | None = None) -> TelemetrySettings:
     level_name = os.getenv("TUTOR_LOG_LEVEL", _DEFAULT_LOG_LEVEL).strip().upper() or _DEFAULT_LOG_LEVEL
     level = _parse_log_level(level_name)
 
     log_dir_raw = os.getenv("TUTOR_LOG_DIR", _DEFAULT_LOG_DIR).strip() or _DEFAULT_LOG_DIR
     log_dir = Path(log_dir_raw)
 
-    return TelemetrySettings(log_level=level, log_dir=log_dir)
+    return TelemetrySettings(log_level=level, log_dir=log_dir, session_name=session_name)
 
 
 def _parse_log_level(level_name: str) -> int:

@@ -296,7 +296,6 @@ class BedrockHomeworkMatcher:
                     "role": "user",
                     "content": [
                         {
-                            "type": "text",
                             "text": prompt,
                         }
                     ],
