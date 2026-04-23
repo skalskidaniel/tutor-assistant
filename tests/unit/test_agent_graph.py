@@ -44,9 +44,10 @@ def test_build_system_prompt_includes_saved_memory(monkeypatch, tmp_path) -> Non
 def test_build_system_prompt_includes_critical_action_approval_rules() -> None:
     prompt = _build_system_prompt(thread_id="teacher-cli")
 
-    assert "Przed operacjami krytycznymi musisz uzyskać wyraźną zgodę użytkownika" in prompt
-    assert "prepare_vacation_notifications tylko gdy send_emails=true" in prompt
-    assert "onboard_student zawsze przed zapisaniem lekcji w kalendarzu" in prompt
+    assert "Przed onboard_student zawsze uzyskaj zgodę użytkownika." in prompt 
+    assert "Przed prepare_vacation_notifications uzyskaj zgodę tylko gdy send_emails=true." in prompt
+    assert "Po zgodzie ustaw approved_by_user=true." in prompt
+    assert "Dla narzędzi niekrytycznych działaj od razu." in prompt
 
 
 def test_is_tool_error_content_detects_tool_error_prefix() -> None:

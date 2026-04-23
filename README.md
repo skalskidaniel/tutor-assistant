@@ -1,190 +1,177 @@
-# Teacher Assistant AI Agent
+# Agentic AI Tutor Assistant
 
-The target users are Polish teachers, and all conversations must be in Polish.
+An autonomous assistant for remote math tutors who run their teaching workflow in Google Workspace.
+
+**User persona:** a private tutor/teacher who uses Google Calendar for lesson scheduling, Google Drive for student notes and homework, and Google Meet for online classes.
+
+This project turns repetitive coordination work into agentic workflows so the tutor can focus on teaching, not admin.
+
+![UI](docs/about.png)
+
+Optionally, chat can display the agent's reasoning trace.
+
+![Reasoning](docs/reasoning.png)
+
+The assistant can:
+
+- read lesson context from calendar + notes,
+- suggest and upload matching homework,
+- clean and normalize Drive structure,
+- onboard new students with meeting + folders,
+- prepare vacation notifications.
+- store important info in its memory.
 
 ## Use Cases
 
-1. Daily summary before work.
-2. Welcoming a new student.
-3. Vacation notifications.
-4. Google Drive cleanup.
-5. Homework management.
+1. Daily Summary
+   - **What it does:** scans today’s lessons, finds the newest student notes PDF, extracts recent pages, and generates short lesson insights.
+   - **Why it matters:** gives the tutor a clear prep brief before each lesson block.
+   - ![Daily summary](docs/daily-summary.png)
+2. Homework Matching
+   - **What it does:** uses lesson notes and a homework database in Drive to choose the best assignment and copy it into the student’s homework folder.
+   - **Why it matters:** speeds up post-lesson follow-up while keeping tasks personalized.
+   - ![Homework matching](docs/homework.png)
+3. Google Drive Cleanup
+   - **What it does:** traverses student folders, removes outdated homework files, and normalizes note filenames.
+   - **Why it matters:** keeps Drive tidy, searchable, and consistent over long tutoring periods.
+   - ![Google Drive cleanup](docs/drive-cleanup.png)
+4. Onboarding New Student
+   - **What it does:** creates a recurring Google Meet schedule, provisions student workspace folders in Drive, and prepares a welcome message.
+   - **Why it matters:** new students can start fast with a predictable, professional onboarding flow.
+   - ![Onboarding student](docs/onboarding.png)
+5. Vacation Notification
+   - **What it does:** checks calendar events in a date range, groups impacted students, drafts notices, and can send emails through Gmail.
+   - **Why it matters:** prevents no-shows and keeps communication proactive when plans change.
+   - ![Vacation notification](docs/vacation.png)
 
-### Use Case 1: Daily summary before work
+## Future Plans
 
-1. The teacher receives a comprehensive summary of how many classes they have that day and with whom, based on Google Calendar.
-2. For each lesson, the teacher gets a reminder of what was done last time with this student, based on the most recently modified Google Drive PDF, along with statistics on how many exercises of each type were completed last time.
-3. Each new section learned during lessons has its own PDF. For example, if a student is working on quadratic functions for a whole month across multiple lessons, all content about that topic is stored in one PDF. Each PDF is responsible for one section, such as "wielomiany", "stereometria", or "geometria".
+Planned improvements that extend automation from operations into teaching quality and business support:
 
-### Use Case 2: Welcoming a new student
+1. **Matura exam checking with CKE alignment**  
+   Consistently evaluate completed exams against official CKE grading schemes to save significant teacher time.
+2. **Personalized worksheet generation (RAG)**  
+   Create tailored worksheets from teacher-uploaded materials and historical student context.
+3. **Intelligent schedule planning**  
+   Suggest lesson slots based on teacher availability, workload, and calendar constraints.
+4. **Student progress monitoring**  
+   Track learning trends over time and highlight students who need intervention.
+5. **Lesson payment tracking**  
+   Add lightweight billing visibility for completed lessons and outstanding payments.
 
-1. The teacher has made contact with a new student.
-2. The agent must create a personalized Google Meet link for the student.
-3. The agent must create a personalized Google Drive directory for the student and allow them to see its contents via a shared URL.
-4. The agent must create a directory with a structure like the one below:
+## Key Insights
 
-```text
-imie-nazwisko/
-├── zadania-domowe/
-│   ├── funkcja-kwadratowa.pdf
-│   └── wielomiany.pdf
-└── notatki/
-    ├── funkcja-kwadratowa.pdf
-    ├── planimetria.pdf
-    ├── geometria-analityczna.pdf
-    └── wzory-viete.pdf
-```
+Critical engineering decisions:
 
-5. The agent creates a message that the teacher can copy and paste to send to the student.
+- **Safety-first agent design (human-in-the-loop for critical actions):** onboarding and email-sending flows require explicit user consent (`approved_by_user=true`) before execution.
+- **Bounded self-repair strategy:** tool failures follow a structured auto-retry policy (up to 3 attempts), then stop with clear escalation messaging instead of looping indefinitely.
+- **Production-aware observability:** dual logging with app logs and structured Strands telemetry, including per-session trace files for postmortem debugging.
+- **Persistent, namespaced agent memory:** JSON-backed memory supports separate thread contexts, with runtime CRUD tools (`save_to_memory`, `read_memory`, `delete_from_memory`).
+- **Deterministic tool-output orchestration:** passthrough handling ensures selected workflows return exact tool output 1:1 when strict formatting is required.
+- **Scalable async workflows:** daily summary and homework pipelines use asyncio + concurrency limits (`max_concurrency`) to process multiple lessons efficiently.
+- **Strong validation and parsing layer:** typed models (Pydantic) and robust date parsing (PL/EN natural language + ISO formats) reduce runtime ambiguity.
+- **Test depth beyond unit level:** includes integration tests for approval workflows and agent behavior, not only isolated function tests.
+- **Clean developer ergonomics:** Docker + `uv` workflows, `ruff` linting, and explicit CLI commands for chat, memory, and operational modes.
 
-### Use Case 3: Vacation notifications
+# How to use the agent
 
-1. The teacher informs the agent about their unavailability.
-2. The agent prepares a personalized message for each student affected by the teacher's leave.
-3. The message contains: "Cześć, musimy przełożyć/odwołać nasze zajęcia z dnia/dni <data> z powodu mojej nieobecności. Możesz sprawdzić dostępne terminy w moim harmonogramie: https://calendar.app.google/wYDwAzjcXXfHD9bx5".
+Before running:
 
-### Use Case 4: Google Drive cleanup
+- rename `secrets/.env.example` to `secrets/.env` and fill in your secrets,
+- create an app in Google Cloud Platform with Google Drive API and Google Calendar API enabled,
+- place OAuth client file at `secrets/credentials.json` **or** set `GOOGLE_OAUTH_CLIENT_ID` + `GOOGLE_OAUTH_CLIENT_SECRET`,
+- run auth once to generate `secrets/token.json` (the agent can trigger login flow via `login_google_user`).
 
-1. The agent browses all students' folders and selects which documents from the "zadania domowe" directory can be removed, based on the publication date. Files older than two months should be removed.
-2. The agent renames all files inside the "notatki" folder using the convention of lowercase words separated by hyphens.
+Required env vars:
 
-### Use Case 5: Homework management
-
-1. The teacher may ask the agent to upload homework to the students' folders for the classes they just had.
-2. The homework documents are selected from the teacher's "homework database", which contains files named according to the content inside.
-
-## Agent Chat (Strands + Bedrock)
-
-Interactive chat mode is available through CLI:
-
-```bash
-uv run python -m tutor.agent chat
-```
-
-Type `exit` or `quit` to close the session.
-
-Useful optional arguments:
-
-- `--calendar-id`
-- `--drive-parent-folder-id`
-- `--homework-db-folder-id`
-- `--thread-id`
-
-Memory can also be managed from CLI:
-
-```bash
-uv run python -m tutor.agent memory-set --key reply_style --value "krotko i rzeczowo"
-uv run python -m tutor.agent memory-list
-uv run python -m tutor.agent memory-delete --key reply_style
-```
-
-## Docker onboarding for new users
-
-Use Docker to run the agent without local Python setup. Each user must provide their own credentials.
-
-### 1) Prepare `secrets/.env` from template
-
-Copy the example file and fill in your own values:
-
-```bash
-mkdir -p secrets memory .logs
-cp secrets/.env.example secrets/.env
-```
-
-At minimum, set:
-
-- `AWS_REGION`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `BEDROCK_AGENT_MODEL_ID`
-- `BEDROCK_INSIGHTS_MODEL_ID`
-- `BEDROCK_HOMEWORK_MATCHER_MODEL_ID`
-- `GOOGLE_OAUTH_CLIENT_ID`
-- `GOOGLE_OAUTH_CLIENT_SECRET`
-- `GOOGLE_OAUTH_PROJECT_ID`
-- `GOOGLE_HOMEWORK_DATABASE_FOLDER_ID`
+- `AWS_REGION` (default used by app: `eu-central-1`)
+- `BEDROCK_AGENT_MODEL_ID` (default: `amazon.nova-lite-v1:0`)
 - `GOOGLE_DRIVE_STUDENT_NOTES_FOLDER_ID`
-- `GOOGLE_BOOK_SCHEDULE_URL`
+- `GOOGLE_HOMEWORK_DATABASE_FOLDER_ID`
+- `GOOGLE_CREDENTIALS_PATH` (optional override)
+- `GOOGLE_TOKEN_PATH` (optional override)
+- `TUTOR_AGENT_MEMORY_PATH` (optional override, JSON-backed memory)
+- `TUTOR_LOG_DIR` (default `.logs`)
 
-### 2) Prepare runtime directories
+## Docker
 
-Create local log directory:
+The fastest way to run in an isolated environment.
 
-```bash
-mkdir -p .logs
-```
+1. Build and run via helper script:
+   - `./run-agent.sh`
+2. Start directly in chat mode (default):
+   - `./run-agent.sh chat`
+3. Extra chat flags:
+   - `./run-agent.sh chat --show-reasoning`
+   - `./run-agent.sh chat --hide-tools`
 
-Google credentials behavior:
+What the script does:
 
-- If `secrets/credentials.json` does not exist, the app will generate it from `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` in `secrets/.env`.
-- On first run, complete browser login to generate `secrets/token.json`.
-- If your app is in GCP OAuth Testing mode, your account must be added to Test users.
+- builds `tutor-assistant-local`,
+- mounts project directory into container,
+- injects envs from `secrets/.env`,
+- persists logs in `.logs/` and memory in `memory/.agent_memory.json`.
 
-### 3) Run with Docker Compose
+## Uv
 
-Single command to build (if needed) and start interactive chat:
+Run locally with `uv` (Python `>=3.14`).
 
-```bash
-docker compose run --build --rm tutor-assistant
-```
+1. Install dependencies:
+   - `uv sync`
+2. Run chat:
+   - `uv run tutor-assistant chat`
+3. Extra chat flags:
+   - `uv run tutor-assistant chat --show-reasoning`
+   - `uv run tutor-assistant chat --hide-tools`
 
-The container runs in interactive mode (`tty` + `stdin_open`), so you can chat directly in terminal.
+## Logs
 
-If you want CLI-like UX without Docker Compose logs, use the local wrapper script:
+Logs are useful for debugging tool calls, model behavior, and runtime issues.
 
-```bash
-./tutor-assistant
-```
+- Default log directory: `.logs/`
+- Configure log location with: `TUTOR_LOG_DIR`
+- Configure log level with: `TUTOR_LOG_LEVEL` (`INFO` by default)
 
-This behaves like `uv run tutor-assistant chat`, but runs inside Docker.
+Typical files:
 
-Useful command overrides:
+- app logs: `tutor-assistant-<session>.log`
+- telemetry traces: `strands-telemetry-<session>.log`
 
-```bash
-docker compose run --rm tutor-assistant memory-list
-docker compose run --rm tutor-assistant memory-set --key reply_style --value "krotko i rzeczowo"
-docker compose run --rm tutor-assistant memory-delete --key reply_style
+Session naming:
 
-# equivalent commands through wrapper (no compose logs)
-./tutor-assistant memory-list
-./tutor-assistant memory-set --key reply_style --value "krotko i rzeczowo"
-./tutor-assistant memory-delete --key reply_style
-```
+- chat sessions are named like `chat-<thread-id>-<YYYYMMDD_HHMMSS>`
+- this session name is used in log filenames
 
-### 4) Troubleshooting
+Quick examples:
 
-- If Google login fails, confirm your account is listed as a GCP OAuth test user.
-- If `credentials.json` is not found, verify your `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` values in `secrets/.env`.
-- If token refresh/auth loops happen, delete `secrets/token.json` and log in again.
-- If writes fail, ensure `secrets/`, `memory/`, and `.logs/` are writable on host.
+- list log files: `ls .logs`
+- inspect app log: `rg "" .logs/tutor-assistant-*.log`
+- inspect telemetry log: `rg "" .logs/strands-telemetry-*.log`
 
-### Trwala pamiec agenta
+## Used tools
 
-Chat agent ma lokalna pamiec trwala, zapisywana w pliku `.agent_memory.json`.
+Core AI/runtime:
 
-- Pamięć jest izolowana po `--thread-id` (kazdy thread to osobna przestrzen danych).
-- Agent moze zapisywac preferencje i ustawienia przez narzedzie `save_to_memory`.
-- Agent moze usuwac zapisane dane przez `delete_from_memory`.
-- Agent moze wyswietlic obecna pamiec przez `read_memory`.
-- Lokalizacje pliku pamieci mozna zmienic przez `TUTOR_AGENT_MEMORY_PATH`.
+- AWS Bedrock (`BedrockModel`, e.g. Nova Lite) for reasoning and text generation
+- `strands-agents` for agent orchestration, tool-calling, and telemetry hooks
+- Rich CLI for interactive terminal UX
 
-### Bedrock model configuration via `secrets/.env`
+Google integrations:
 
-- `BEDROCK_AGENT_MODEL_ID` - model used by conversational agent (Strands chat)
-- `BEDROCK_INSIGHTS_MODEL_ID` - model used by daily summary to analyze lesson notes
-- `BEDROCK_HOMEWORK_MATCHER_MODEL_ID` - model used by homework flow to match homework to students
+- Google Calendar API for lesson discovery
+- Google Drive API for notes/homework organization and file operations
+- Gmail API for vacation email notifications
+- Google OAuth desktop flow for local authorization
 
-Both values can point to different Bedrock model IDs, so you can test model combinations independently.
+Document + data processing:
 
-### Natywna telemetria Strands
+- PyMuPDF for extracting content from the newest note PDFs
+- Pydantic for structured validation/parsing of model outputs
+- dateparser for robust natural-date handling in tool inputs
 
-Agent uruchamia natywna telemetrie `strands-agents` lokalnie przy starcie CLI (`setup_telemetry()`):
+Quality and developer workflow:
 
-- trace/spany nie sa wypisywane do konsoli,
-- trace/spany sa zapisywane do `.logs/strands-telemetry.log`,
-- logi aplikacyjne Pythona sa zapisywane do `.logs/tutor-assistant.log`.
-
-Dostepne zmienne srodowiskowe:
-
-- `TUTOR_LOG_DIR` - katalog logow (domyslnie `.logs`),
-- `TUTOR_LOG_LEVEL` - poziom logowania (`DEBUG`, `INFO`, `WARNING`, `ERROR`; domyslnie `INFO`).
+- `uv` for dependency + execution workflow
+- `pytest` for unit/integration coverage
+- `ruff` for linting
+- Docker for reproducible runtime
