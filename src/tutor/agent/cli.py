@@ -32,9 +32,9 @@ from tutor.homework import (
     GoogleDriveHomeworkProvider,
     HomeworkService,
 )
-from tutor.core import GoogleCalendarLessonProvider
-from tutor.core import Student
+from tutor.core import GoogleCalendarLessonProvider, Student
 from tutor.core.memory import DEFAULT_MEMORY_NAMESPACE, MemoryService
+from tutor.core.telemetry import setup_telemetry
 from tutor.onboarding import (
     GoogleDriveProvider,
     GoogleMeetProvider,
@@ -111,6 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     load_dotenv(Path(".env"), override=True)
+    setup_telemetry()
     args = build_parser().parse_args()
 
     if args.command == "chat":

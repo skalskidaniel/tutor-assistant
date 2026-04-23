@@ -5,11 +5,9 @@ from typing import Callable
 import dateparser
 from strands import tool
 
-from langsmith import traceable
-
 
 def agent_tool(func: Callable[..., object]) -> Callable[..., object]:
-    return tool(traceable(run_type="tool", name=func.__name__)(func))
+    return tool(func)
 
 
 def parse_date_value(

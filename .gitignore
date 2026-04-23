@@ -54,6 +54,7 @@ token.json
 
 # Runtime/log files
 *.log
+.logs/
 
 # Local/generated outputs and large data artifacts
 outputs/

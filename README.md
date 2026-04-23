@@ -95,3 +95,16 @@ Chat agent ma lokalna pamiec trwala, zapisywana w pliku `.agent_memory.json`.
 - `BEDROCK_HOMEWORK_MATCHER_MODEL_ID` - model used by homework flow to match homework to students
 
 Both values can point to different Bedrock model IDs, so you can test model combinations independently.
+
+### Natywna telemetria Strands
+
+Agent uruchamia natywna telemetrie `strands-agents` lokalnie przy starcie CLI (`setup_telemetry()`):
+
+- trace/spany nie sa wypisywane do konsoli,
+- trace/spany sa zapisywane do `.logs/strands-telemetry.log`,
+- logi aplikacyjne Pythona sa zapisywane do `.logs/tutor-assistant.log`.
+
+Dostepne zmienne srodowiskowe:
+
+- `TUTOR_LOG_DIR` - katalog logow (domyslnie `.logs`),
+- `TUTOR_LOG_LEVEL` - poziom logowania (`DEBUG`, `INFO`, `WARNING`, `ERROR`; domyslnie `INFO`).

@@ -39,7 +39,7 @@ def create_google_desktop_credentials_file(
         }
     }
     credentials_path.write_text(
-        json.dumps(payload, ensure_ascii=True, indent=2),
+        json.dumps(payload, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 

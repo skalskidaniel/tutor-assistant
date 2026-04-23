@@ -7,7 +7,6 @@ from threading import Thread
 from typing import Any, Iterator, Literal, cast
 from collections.abc import Awaitable, Callable
 
-from langsmith import traceable
 from strands import Agent
 
 from .models import ChatStreamEvent
@@ -131,7 +130,6 @@ class AgentChatSession:
 
         worker.join()
 
-    @traceable(run_type="chain", name="chat_session_ask")
     def ask(self, user_input: str) -> str:
         chunks: list[str] = []
         for event in self.stream(user_input):

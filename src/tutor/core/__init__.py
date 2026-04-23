@@ -15,6 +15,7 @@ from .calendar import (
 )
 from .memory import DEFAULT_MEMORY_NAMESPACE, MemoryService
 from .models import Student
+from .telemetry import setup_telemetry
 from .utils import slugify, resolve_required_path, extract_bedrock_text, format_http_error
 
 __all__ = [
@@ -29,6 +30,7 @@ __all__ = [
     "load_google_credentials",
     "DEFAULT_MEMORY_NAMESPACE",
     "MemoryService",
+    "setup_telemetry",
     "slugify",
     "Student",
     "resolve_required_path",
